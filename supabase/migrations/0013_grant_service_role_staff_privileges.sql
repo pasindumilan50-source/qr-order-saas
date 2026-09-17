@@ -1,0 +1,81 @@
+-- ============================================================================
+-- 0013_grant_service_role_staff_privileges.sql
+--
+-- Fix: "permission denied for table staff" from the Admin Staff UI.
+--
+-- WHY THIS MIGRATION EXISTS
+-- --------------------------
+-- Read-only verification against the production database
+-- (information_schema.role_table_grants) confirmed that `service_role` has
+-- NO table-level privileges on `public.staff` at all:
+--
+--     service_role on public.staff:     SELECT false  INSERT false  UPDATE false  DELETE false
+--     service_role on public.profiles:  SELECT true   INSERT true
+--
+-- This project's migrations have never issued an explicit table-level GRANT
+-- for any role (see the comments in 0002_rls.sql, 0005_..., 0008_...) —
+-- `service_role` privileges have always come from Supabase's own
+-- platform-level bootstrap/default-privilege setup, not from anything in
+-- this migration history. `profiles` picked those default grants up;
+-- `staff`, for whatever reason at the infrastructure level, did not.
+--
+-- This matters because `service_role`'s RLS bypass (`BYPASSRLS`) and its
+-- Postgres table privileges are two independent mechanisms. Bypassing RLS
+-- means policies are never evaluated for this role — it does NOT imply the
+-- role holds SELECT/INSERT/UPDATE/DELETE on any given table. Without an
+-- explicit grant, `service_role` gets a hard Postgres-level
+-- "permission denied for table X" (SQLSTATE 42501) before RLS is ever
+-- reached, on any table missing that grant. That is exactly the error
+-- surfacing from the Admin Staff UI.
+--
+-- This migration does not change RLS. Direct client writes to `staff` are,
+-- and remain, denied to `authenticated`/`anon` by the `staff_insert_none`,
+-- `staff_update_none`, and `staff_delete_none` RLS policies in 0002_rls.sql
+-- (`for ... using (public.is_super_admin())` only). This migration only
+-- grants the underlying `service_role` Postgres role the table privileges
+-- it needs to bypass RLS successfully, which is precisely the architecture
+-- documented at 0002_rls.sql lines 442-445: "staff — mutations only via
+-- Edge Functions using the service role, which bypasses RLS entirely...".
+--
+-- WHICH PRIVILEGES, AND WHY
+-- --------------------------
+-- Every Edge Function that touches `public.staff` was inspected
+-- (supabase/functions/{invite-staff,update-staff-role,set-staff-status,
+-- remove-staff}/index.ts), all via the shared `serviceRoleClient()` in
+-- supabase/functions/_shared/clients.ts. Their `public.staff` operations:
+--
+--   invite-staff:      .from('staff').upsert(..., { onConflict: 'restaurant_id,user_id' }).select().single()
+--   update-staff-role:  .from('staff').select(...)   then   .from('staff').update(...)
+--   set-staff-status:   .from('staff').select(...)   then   .from('staff').update(...)
+--   remove-staff:       .from('staff').select(...)   then   .from('staff').delete(...)
+--
+--   SELECT — required by:
+--     - the trailing `.select().single()` PostgREST appends after the
+--       upsert in invite-staff to return the written row, and
+--     - the `.select('id, restaurant_id, user_id, role')` lookups in
+--       update-staff-role / set-staff-status / remove-staff.
+--
+--   INSERT — required by invite-staff's `.upsert(...)`, which resolves to
+--     `INSERT ... ON CONFLICT (restaurant_id, user_id) DO UPDATE`.
+--
+--   UPDATE — required for two reasons:
+--     1. `INSERT ... ON CONFLICT ... DO UPDATE` (which is what a
+--        Supabase/PostgREST upsert with onConflict compiles to) needs
+--        UPDATE privilege on the table for its conflict-resolution branch,
+--        in addition to INSERT for the initial-insert branch — Postgres
+--        checks both grants for this statement shape.
+--     2. update-staff-role and set-staff-status both call
+--        `.from('staff').update(...)` directly.
+--
+--   DELETE — required by remove-staff, which calls
+--     `admin.from('staff').delete().eq('id', staffId)` directly. This is a
+--     genuine, existing use of service_role DELETE on `staff` (not a
+--     precautionary grant) — confirmed by reading
+--     supabase/functions/remove-staff/index.ts before writing this
+--     migration, per the "no DELETE unless actually required" instruction.
+--
+-- No other tables are touched by this migration. `profiles` already has the
+-- grants it needs and is intentionally left untouched.
+-- ============================================================================
+
+grant select, insert, update, delete on table public.staff to service_role;

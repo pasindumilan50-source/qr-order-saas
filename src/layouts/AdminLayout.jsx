@@ -1,0 +1,55 @@
+import { useState } from 'react';
+import { NavLink, Outlet } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+const NAV_ITEMS = [
+  { to: '/admin', label: 'Dashboard', icon: '📊', end: true },
+  { to: '/admin/orders', label: 'Orders', icon: '🧾' },
+  { to: '/admin/kitchen', label: 'Kitchen', icon: '🍳' },
+  { to: '/admin/menu', label: 'Menu', icon: '📋' },
+  { to: '/admin/tables', label: 'Tables', icon: '🪑' },
+  { to: '/admin/qr', label: 'QR Codes', icon: '🔲' },
+  { to: '/admin/customers', label: 'Customers', icon: '👥' },
+  { to: '/admin/staff', label: 'Staff', icon: '🧑‍🍳' },
+  { to: '/admin/reports', label: 'Reports', icon: '📈' },
+  { to: '/admin/settings', label: 'Settings', icon: '⚙️' },
+];
+
+export default function AdminLayout() {
+  const { logout, profile, role } = useAuth();
+  const [navOpen, setNavOpen] = useState(false);
+
+  return (
+    <div className="app-shell">
+      <button className="mobile-nav-toggle" onClick={() => setNavOpen((o) => !o)} aria-label="Toggle navigation">
+        ☰
+      </button>
+      <aside className={`sidebar ${navOpen ? 'sidebar-open' : ''}`}>
+        <div className="sidebar-header">
+          <span className="brand">QR Order</span>
+          <span className="brand-subtitle">{profile?.name || role}</span>
+        </div>
+        <nav className="sidebar-nav">
+          {NAV_ITEMS.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+              onClick={() => setNavOpen(false)}
+            >
+              <span className="sidebar-icon">{item.icon}</span>
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+        <button className="btn btn-ghost sidebar-logout" onClick={logout}>
+          🚪 Logout
+        </button>
+      </aside>
+      <main className="main-content">
+        <Outlet />
+      </main>
+    </div>
+  );
+}

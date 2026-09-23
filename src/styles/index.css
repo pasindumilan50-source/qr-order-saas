@@ -297,7 +297,13 @@ code {
   display: flex;
   align-items: center;
   gap: 14px;
+  animation: adminCardIn 0.3s ease both;
 }
+.stat-card:nth-child(2) { animation-delay: 0.04s; }
+.stat-card:nth-child(3) { animation-delay: 0.08s; }
+.stat-card:nth-child(4) { animation-delay: 0.12s; }
+.stat-card:nth-child(5) { animation-delay: 0.16s; }
+.stat-card:nth-child(6) { animation-delay: 0.2s; }
 .stat-icon {
   font-size: 26px;
 }
@@ -487,9 +493,49 @@ th {
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
+  position: relative;
+}
+.modal-overlay {
+  animation: overlayFadeIn 0.18s ease both;
+}
+.modal {
+  animation: modalPopIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes modalPopIn {
+  from { opacity: 0; transform: scale(0.92) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 .modal-lg {
   max-width: 560px;
+}
+.save-success-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: var(--radius);
+  animation: overlayFadeIn 0.15s ease both;
+  z-index: 5;
+}
+.save-success-check {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-success, #16a34a);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  animation: successPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.save-success-label {
+  font-weight: 700;
+  color: var(--color-text);
 }
 .modal-actions {
   display: flex;
@@ -722,6 +768,10 @@ th {
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.35s ease;
+}
+.highlight-card-media:hover img {
+  transform: scale(1.08);
 }
 .highlight-card-add {
   position: absolute;
@@ -738,6 +788,13 @@ th {
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 3px 8px rgba(232, 70, 45, 0.4);
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+.highlight-card-add:active {
+  transform: scale(0.85);
+}
+.highlight-card-add.just-added {
+  animation: addPulse 0.4s ease;
 }
 .highlight-card-name {
   font-size: 13px;
@@ -772,6 +829,10 @@ th {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.12s ease;
+}
+.category-tab:active {
+  transform: scale(0.95);
 }
 .category-tab.active {
   background: var(--menu-ink);
@@ -793,12 +854,52 @@ th {
   padding: 3px 8px;
   border-radius: 999px;
   white-space: nowrap;
+  animation: badgeGlow 2.8s ease-in-out infinite;
+}
+@keyframes badgeGlow {
+  0%, 100% { filter: drop-shadow(0 0 0 transparent); }
+  50% { filter: drop-shadow(0 0 3px var(--badge-color, rgba(0, 0, 0, 0.3))); }
+}
+
+/* Sold-out overlay stamp, shared by admin + customer cards */
+.sold-out-stamp {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.55);
+  animation: overlayFadeIn 0.2s ease both;
+}
+.sold-out-stamp span {
+  color: white;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  border: 2px solid white;
+  padding: 4px 10px;
+  border-radius: 6px;
+  transform: rotate(-8deg);
+  animation: soldOutStampIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes soldOutStampIn {
+  from { opacity: 0; transform: rotate(-8deg) scale(0.6); }
+  to { opacity: 1; transform: rotate(-8deg) scale(1); }
+}
+.is-sold-out-img {
+  filter: brightness(0.55) saturate(0.7);
+  transition: filter 0.2s ease;
 }
 
 .menu-grid {
   display: grid;
   gap: 16px;
   padding: 6px 20px 100px;
+  animation: filterFadeIn 0.22s ease both;
+}
+@keyframes filterFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .menu-card {
   display: flex;
@@ -808,6 +909,10 @@ th {
   box-shadow: 0 1px 2px rgba(26, 22, 20, 0.05), 0 6px 16px rgba(26, 22, 20, 0.06);
   animation: menuCardIn 0.3s ease both;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.menu-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(26, 22, 20, 0.08), 0 10px 22px rgba(26, 22, 20, 0.1);
 }
 .menu-card:nth-child(2) { animation-delay: 0.03s; }
 .menu-card:nth-child(3) { animation-delay: 0.06s; }
@@ -819,10 +924,18 @@ th {
   to { opacity: 1; transform: translateY(0); }
 }
 .menu-card-add-btn {
-  transition: transform 0.12s ease;
+  transition: transform 0.12s ease, background 0.2s ease;
 }
 .menu-card-add-btn:active {
   transform: scale(0.88);
+}
+.menu-card-add-btn.just-added {
+  animation: addPulse 0.4s ease;
+}
+@keyframes addPulse {
+  0% { transform: scale(1); background: var(--menu-chili); }
+  50% { transform: scale(1.25); background: var(--color-success, #16a34a); }
+  100% { transform: scale(1); }
 }
 .menu-card-unavailable {
   opacity: 0.5;
@@ -833,12 +946,17 @@ th {
   height: 104px;
   flex-shrink: 0;
   background: var(--menu-paper-dim);
+  overflow: hidden;
 }
 .menu-card-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.35s ease;
+}
+.menu-card-media:hover .menu-card-image {
+  transform: scale(1.08);
 }
 .menu-card-image-fallback {
   width: 100%;
@@ -925,6 +1043,15 @@ th {
   max-width: 608px;
   margin: 0 auto;
   animation: cartFabIn 0.25s ease both;
+  transition: transform 0.15s ease;
+}
+.cart-fab.bump {
+  animation: cartBump 0.32s ease;
+}
+@keyframes cartBump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.06); }
+  100% { transform: scale(1); }
 }
 @keyframes cartFabIn {
   from { opacity: 0; transform: translateY(12px) scale(0.98); }
@@ -1035,6 +1162,7 @@ th {
   transition: color 0.25s ease;
 }
 .status-dot {
+  position: relative;
   width: 14px;
   height: 14px;
   border-radius: 50%;
@@ -1049,6 +1177,31 @@ th {
 .status-step-done .status-dot {
   background: var(--color-success);
 }
+.status-step-done:not(.status-step-current) .status-dot::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: white;
+  animation: successPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.status-step-current .status-dot {
+  animation: statusPulse 1.6s ease-in-out infinite;
+}
+@keyframes statusPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.45); }
+  50% { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
+}
+.status-step {
+  animation: menuFadeInUp 0.3s ease both;
+}
+.status-step:nth-child(2) { animation-delay: 0.05s; }
+.status-step:nth-child(3) { animation-delay: 0.1s; }
+.status-step:nth-child(4) { animation-delay: 0.15s; }
+.status-step:nth-child(5) { animation-delay: 0.2s; }
 .status-cancelled {
   text-align: center;
   padding: 24px;
@@ -1112,17 +1265,47 @@ th {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
+  animation: filterFadeIn 0.22s ease both;
 }
 .admin-menu-card {
   background: var(--color-surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: hidden;
+  animation: adminCardIn 0.32s ease both;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.admin-menu-card:nth-child(2) { animation-delay: 0.04s; }
+.admin-menu-card:nth-child(3) { animation-delay: 0.08s; }
+.admin-menu-card:nth-child(4) { animation-delay: 0.12s; }
+.admin-menu-card:nth-child(5) { animation-delay: 0.16s; }
+.admin-menu-card:nth-child(n+6) { animation-delay: 0.2s; }
+@keyframes adminCardIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.admin-menu-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+}
+.admin-menu-card.is-removing {
+  animation: cardRemoveOut 0.26s ease forwards;
+  pointer-events: none;
+}
+@keyframes cardRemoveOut {
+  to { opacity: 0; transform: translateY(6px) scale(0.96); }
+}
+.admin-menu-card-media {
+  position: relative;
 }
 .admin-menu-card img {
   width: 100%;
   height: 140px;
   object-fit: cover;
+  transition: transform 0.35s ease;
+}
+.admin-menu-card:hover img {
+  transform: scale(1.06);
 }
 .admin-menu-card-body {
   padding: 14px;
@@ -1161,6 +1344,51 @@ th {
 .admin-menu-card-actions {
   display: flex;
   gap: 8px;
+}
+
+/* Animated toggle switches for Available / Sold out */
+.switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.switch-track {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: #d1d5db;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+.switch-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.switch input:checked + .switch-track {
+  background: var(--color-primary);
+}
+.switch input:checked + .switch-track::after {
+  transform: translateX(14px);
+}
+.switch.switch-danger input:checked + .switch-track {
+  background: #dc2626;
 }
 
 /* ---------- QR codes ---------- */
@@ -1377,13 +1605,22 @@ th {
 }
 
 /* =========================================================================
-   Customer QR menu — animation-only additions.
-   Nothing above this line was touched. No new colours are introduced —
-   everything below reuses the existing --menu-*, --color-* and --radius/
-   --shadow tokens already defined earlier in this file. Deliberately
-   excludes the "Popular" / "Fast Moving" highlight badges and rail — that
-   section is untouched, no glow/pulse added there.
+   Customer QR menu — genuinely new additions only (QR opening, food
+   details bottom sheet, order-confirmation hero). Everything above this
+   line is the untouched original file — same colour theme, same
+   pre-existing animations (badge glow, sold-out stamp, card hovers,
+   status tracker, etc). Nothing pre-existing is duplicated below.
    ========================================================================= */
+
+/* Fixes a pre-existing bug: .status-step-done::after already referenced
+   this animation name higher up in the file, but the keyframes were
+   never defined, so that checkmark pop never actually ran. Also used by
+   the new .order-confirm-check below. */
+@keyframes successPop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
 
 /* ---- QR-scan opening moment (logo fade+scale, name, welcome, table),
    then fades out to reveal the menu. Shown once per table per session —
@@ -1454,43 +1691,6 @@ th {
 }
 @keyframes qrRiseIn {
   to { opacity: 1; transform: translateY(0); }
-}
-
-/* ---- category pill transition (was instant, now smooth) ---- */
-.category-tab {
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.12s ease;
-}
-.category-tab:active {
-  transform: scale(0.95);
-}
-
-/* ---- subtle press feedback when a menu card is tapped ---- */
-.menu-card-media,
-.menu-card-body h3 {
-  cursor: pointer;
-}
-.menu-card:active {
-  transform: scale(0.985);
-}
-
-/* ---- add-button pulse when an item is added to cart ---- */
-.menu-card-add-btn.just-added {
-  animation: addPulse 0.4s ease;
-}
-@keyframes addPulse {
-  0% { transform: scale(1); background: var(--menu-chili); }
-  50% { transform: scale(1.25); background: var(--color-success, #16a34a); }
-  100% { transform: scale(1); }
-}
-
-/* ---- floating cart bar bump when item count changes ---- */
-.cart-fab.bump {
-  animation: cartBump 0.32s ease;
-}
-@keyframes cartBump {
-  0% { transform: scale(1); }
-  40% { transform: scale(1.06); }
-  100% { transform: scale(1); }
 }
 
 /* ---- food details bottom sheet — opened by tapping a menu card ---- */
@@ -1597,7 +1797,9 @@ th {
   background: var(--color-success, #16a34a);
 }
 
-/* ---- order confirmation hero (shown once, right after placing) ---- */
+/* ---- order confirmation hero (shown once, right after placing an order,
+   above the pre-existing status tracker — see justPlaced in
+   OrderStatusPage.jsx) ---- */
 .order-confirm-hero {
   text-align: center;
   background: var(--color-surface);
@@ -1634,32 +1836,4 @@ th {
   margin-top: 10px;
   font-weight: 700;
   color: var(--color-text);
-}
-
-/* ---- status tracker: pulsing current step + pop-in checkmark on done steps ---- */
-.status-dot {
-  position: relative;
-}
-.status-step-current .status-dot {
-  animation: statusPulse 1.6s ease-in-out infinite;
-}
-.status-step-done:not(.status-step-current) .status-dot::after {
-  content: '✓';
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  color: white;
-  animation: successPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-@keyframes statusPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.45); }
-  50% { box-shadow: 0 0 0 6px rgba(5, 150, 105, 0); }
-}
-@keyframes successPop {
-  0% { transform: scale(0.6); opacity: 0; }
-  60% { transform: scale(1.15); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
 }

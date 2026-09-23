@@ -680,7 +680,7 @@ th {
   min-height: 100vh;
   background: var(--menu-paper-dim);
   color: var(--menu-text);
-  padding-bottom: 96px;
+  padding-bottom: 32px;
   font-family: inherit;
 }
 
@@ -715,10 +715,10 @@ th {
   width: 18px;
   height: 18px;
 }
-.header-icon-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.header-icon-spacer {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
 }
 .header-cart-badge {
   position: absolute;
@@ -1168,6 +1168,9 @@ th {
   transform: translateY(14px);
   animation: menuCardIn 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
 }
+@keyframes menuCardIn {
+  to { opacity: 1; transform: translateY(0); }
+}
 .menu-card:hover {
   border-color: var(--menu-chili);
 }
@@ -1286,7 +1289,7 @@ th {
   position: fixed;
   left: 16px;
   right: 16px;
-  bottom: 80px;
+  bottom: 16px;
   z-index: 40;
   background: var(--menu-chili);
   color: white;
@@ -1315,61 +1318,6 @@ th {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-}
-
-/* ---- fixed bottom navigation ---- */
-.bottom-nav {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 35;
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  background: var(--menu-paper);
-  border-top: 1px solid var(--color-border);
-  padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
-}
-.bottom-nav-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  border: none;
-  background: none;
-  color: var(--menu-text-muted);
-  font-size: 10.5px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 4px 8px;
-}
-.bottom-nav-item svg {
-  width: 19px;
-  height: 19px;
-}
-.bottom-nav-order {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  border: none;
-  background: var(--menu-chili);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  margin-top: -26px;
-  box-shadow: 0 10px 20px -8px rgba(15, 23, 42, 0.4);
-}
-.bottom-nav-order svg {
-  width: 20px;
-  height: 20px;
-}
-
-/* Info panel reuses the same bottom-sheet mechanics as .food-sheet
-   (defined further down) — this just tweaks a couple of spacing details. */
-.info-panel h2 {
-  margin-top: 4px;
 }
 
 .cart-drawer-overlay {
@@ -1496,10 +1444,6 @@ th {
     max-width: 720px;
     margin-left: auto;
     margin-right: auto;
-  }
-  .bottom-nav {
-    justify-content: center;
-    gap: 48px;
   }
   .cart-drawer,
   .food-sheet {

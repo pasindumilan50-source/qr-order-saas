@@ -189,7 +189,6 @@ function MenuContent({ restaurant, restaurantId, table, isGuest, authError }) {
   const [hideSoldOut, setHideSoldOut] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
-  const [infoPanelOpen, setInfoPanelOpen] = useState(false);
   const cart = useCart();
   const toast = useToast();
   const navigate = useNavigate();
@@ -198,18 +197,6 @@ function MenuContent({ restaurant, restaurantId, table, isGuest, authError }) {
   const [customerPhone, setCustomerPhone] = useState('');
   const [cartBump, setCartBump] = useState(false);
   const prevItemCount = useRef(cart.itemCount);
-
-  // Lets the header's profile icon / info panel offer a real "track your
-  // order" link — set once an order is actually placed this session, never
-  // fabricated.
-  const lastOrderKey = `qr-last-order:${restaurantId}`;
-  const [lastOrderId, setLastOrderId] = useState(() => {
-    try {
-      return sessionStorage.getItem(lastOrderKey) || null;
-    } catch {
-      return null;
-    }
-  });
 
   // QR-scan opening moment: only on the first visit to this table this
   // session, so repeat customers (re-opening the tab, adding more items)
@@ -321,9 +308,6 @@ function MenuContent({ restaurant, restaurantId, table, isGuest, authError }) {
   const scrollToMenu = () => {
     document.getElementById('menu-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
   const handlePlaceOrder = async () => {
     if (cart.items.length === 0) return;
@@ -338,12 +322,6 @@ function MenuContent({ restaurant, restaurantId, table, isGuest, authError }) {
         customerPhone,
       });
       cart.clearCart();
-      try {
-        sessionStorage.setItem(lastOrderKey, result.orderId);
-      } catch {
-        /* sessionStorage unavailable — "track order" link just won't show */
-      }
-      setLastOrderId(result.orderId);
       navigate(`/order/${result.orderId}`, { state: { justPlaced: true } });
     } catch (err) {
       toast.error(err.message || 'Could not place your order. Please try again.');
@@ -368,9 +346,7 @@ function MenuContent({ restaurant, restaurantId, table, isGuest, authError }) {
       )}
 
       <header className="customer-header">
-        <button className="header-icon-btn" aria-label="Menu" onClick={() => setInfoPanelOpen(true)}>
-          <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
-        </button>
+        <div className="header-icon-spacer" aria-hidden="true" />
 
         <div className="customer-header-brand">
           {restaurant.logo ? (
@@ -384,15 +360,10 @@ function MenuContent({ restaurant, restaurantId, table, isGuest, authError }) {
           <span className="customer-header-table">Table {table.tableNumber}</span>
         </div>
 
-        <div className="header-icon-group">
-          <button className="header-icon-btn" aria-label="Restaurant info" onClick={() => setInfoPanelOpen(true)}>
-            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.8" /><path d="M5 20c1.2-4 4-6 7-6s5.8 2 7 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
-          </button>
-          <button className="header-icon-btn header-cart-btn" aria-label="View cart" onClick={() => setCartOpen(true)}>
-            <svg viewBox="0 0 24 24" fill="none"><path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9.5" cy="20.5" r="1.3" fill="currentColor" /><circle cx="17.5" cy="20.5" r="1.3" fill="currentColor" /></svg>
-            {cart.itemCount > 0 && <span className="header-cart-badge">{cart.itemCount}</span>}
-          </button>
-        </div>
+        <button className="header-icon-btn header-cart-btn" aria-label="View cart" onClick={() => setCartOpen(true)}>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9.5" cy="20.5" r="1.3" fill="currentColor" /><circle cx="17.5" cy="20.5" r="1.3" fill="currentColor" /></svg>
+          {cart.itemCount > 0 && <span className="header-cart-badge">{cart.itemCount}</span>}
+        </button>
       </header>
 
       <div className="customer-search-row">
@@ -502,43 +473,6 @@ function MenuContent({ restaurant, restaurantId, table, isGuest, authError }) {
             View Cart <span aria-hidden="true">→</span>
           </span>
         </button>
-      )}
-
-      <nav className="bottom-nav">
-        <button className="bottom-nav-item" onClick={scrollToTop}>
-          <svg viewBox="0 0 24 24" fill="none"><path d="M4 11.5 12 4l8 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><path d="M6 10v9h12v-9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          <span>Home</span>
-        </button>
-        <button className="bottom-nav-item" onClick={scrollToMenu}>
-          <svg viewBox="0 0 24 24" fill="none"><path d="M6 4v16M6 4h11a3 3 0 0 1 0 6H6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          <span>Menu</span>
-        </button>
-        <button className="bottom-nav-order" onClick={() => setCartOpen(true)} aria-label="View order">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        </button>
-        <button className="bottom-nav-item" onClick={() => setInfoPanelOpen(true)}>
-          <svg viewBox="0 0 24 24" fill="none"><circle cx="6" cy="12" r="1.4" fill="currentColor" /><circle cx="12" cy="12" r="1.4" fill="currentColor" /><circle cx="18" cy="12" r="1.4" fill="currentColor" /></svg>
-          <span>More</span>
-        </button>
-      </nav>
-
-      {infoPanelOpen && (
-        <div className="food-sheet-overlay" onClick={() => setInfoPanelOpen(false)}>
-          <div className="food-sheet info-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="food-sheet-handle" />
-            <h2>{restaurant.name}</h2>
-            <p className="food-sheet-desc">Table {table.tableNumber} · dine-in</p>
-            <p className="food-sheet-desc">
-              Browse the menu, add what you'd like, and send your order straight to the kitchen — no need to flag
-              down a waiter.
-            </p>
-            {lastOrderId && (
-              <button className="food-sheet-cta" onClick={() => navigate(`/order/${lastOrderId}`)}>
-                Track your last order
-              </button>
-            )}
-          </div>
-        </div>
       )}
 
       {detailItem && <FoodSheet item={detailItem} onClose={() => setDetailItem(null)} />}

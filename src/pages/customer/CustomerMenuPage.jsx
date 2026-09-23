@@ -152,12 +152,44 @@ export default function CustomerMenuPage() {
   );
 }
 
+// A category name is always real restaurant data (from menu_items.category).
+// This only picks a decorative emoji to go with that real name — it never
+// invents, renames, or hides a category. Unrecognised names safely fall
+// back to a generic plate icon.
+function categoryEmoji(name) {
+  const n = (name || '').toLowerCase();
+  if (n === 'all') return '🍽️';
+  if (n.includes('rice')) return '🍚';
+  if (n.includes('biryani')) return '🍛';
+  if (n.includes('curry')) return '🍛';
+  if (n.includes('kottu')) return '🥘';
+  if (n.includes('noodle')) return '🍜';
+  if (n.includes('pasta')) return '🍝';
+  if (n.includes('soup')) return '🍲';
+  if (n.includes('salad')) return '🥗';
+  if (n.includes('starter') || n.includes('appetizer') || n.includes('snack')) return '🥗';
+  if (n.includes('seafood') || n.includes('fish') || n.includes('prawn') || n.includes('crab')) return '🐟';
+  if (n.includes('chicken')) return '🍗';
+  if (n.includes('beef') || n.includes('meat') || n.includes('mutton') || n.includes('pork')) return '🥩';
+  if (n.includes('pizza')) return '🍕';
+  if (n.includes('burger')) return '🍔';
+  if (n.includes('bread') || n.includes('bakery') || n.includes('roti') || n.includes('naan')) return '🥖';
+  if (n.includes('dessert') || n.includes('sweet') || n.includes('cake') || n.includes('ice cream')) return '🍰';
+  if (n.includes('drink') || n.includes('beverage') || n.includes('juice') || n.includes('tea') || n.includes('coffee')) return '🥤';
+  if (n.includes('breakfast')) return '🍳';
+  if (n.includes('offer') || n.includes('discount') || n.includes('deal') || n.includes('combo')) return '🏷️';
+  return '🍽️';
+}
+
 function MenuContent({ restaurant, restaurantId, table, isGuest, authError }) {
   const [menuItems, setMenuItems] = useState([]);
   const [menuLoading, setMenuLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [hideSoldOut, setHideSoldOut] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
+  const [infoPanelOpen, setInfoPanelOpen] = useState(false);
   const cart = useCart();
   const toast = useToast();
   const navigate = useNavigate();
@@ -166,6 +198,18 @@ function MenuContent({ restaurant, restaurantId, table, isGuest, authError }) {
   const [customerPhone, setCustomerPhone] = useState('');
   const [cartBump, setCartBump] = useState(false);
   const prevItemCount = useRef(cart.itemCount);
+
+  // Lets the header's profile icon / info panel offer a real "track your
+  // order" link — set once an order is actually placed this session, never
+  // fabricated.
+  const lastOrderKey = `qr-last-order:${restaurantId}`;
+  const [lastOrderId, setLastOrderId] = useState(() => {
+    try {
+      return sessionStorage.getItem(lastOrderKey) || null;
+    } catch {
+      return null;
+    }
+  });
 
   // QR-scan opening moment: only on the first visit to this table this
   // session, so repeat customers (re-opening the tab, adding more items)
@@ -216,28 +260,70 @@ function MenuContent({ restaurant, restaurantId, table, isGuest, authError }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId]);
 
+  // The ONLY source of truth for categories is the restaurant's own menu
+  // items — never hard-coded. A category appears the moment an item in the
+  // admin dashboard is tagged with it, and disappears the moment no item
+  // carries it any more (the live Supabase subscription above keeps this
+  // in sync automatically, no redeploy needed).
   const categories = useMemo(() => {
     const set = new Set(menuItems.map((i) => i.category || 'Uncategorized'));
     return ['All', ...Array.from(set)];
   }, [menuItems]);
 
-  const visibleItems = useMemo(
-    () => menuItems.filter((i) => activeCategory === 'All' || (i.category || 'Uncategorized') === activeCategory),
-    [menuItems, activeCategory]
+  const visibleItems = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return menuItems.filter((i) => {
+      if (activeCategory !== 'All' && (i.category || 'Uncategorized') !== activeCategory) return false;
+      if (hideSoldOut && (i.available === false || i.soldOut)) return false;
+      if (q && !`${i.name} ${i.description || ''}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [menuItems, activeCategory, searchQuery, hideSoldOut]);
+
+  // "Complete menu" is grouped by category, same real category names as
+  // above — this just buckets the already-filtered list for section
+  // headings, it doesn't add or invent anything.
+  const groupedMenu = useMemo(() => {
+    const groups = new Map();
+    visibleItems.forEach((item) => {
+      const cat = item.category || 'Uncategorized';
+      if (!groups.has(cat)) groups.set(cat, []);
+      groups.get(cat).push(item);
+    });
+    return Array.from(groups.entries());
+  }, [visibleItems]);
+
+  // Popular Dishes carousel — only items the restaurant itself tagged as
+  // fast_moving / popular / chef_special, and only while actually
+  // available. No badge data -> no carousel (handled by the .length check
+  // where this is rendered).
+  const popularItems = useMemo(
+    () =>
+      menuItems.filter(
+        (i) =>
+          i.available !== false &&
+          !i.soldOut &&
+          i.badges?.some((b) => b === 'popular' || b === 'fast_moving' || b === 'chef_special')
+      ),
+    [menuItems]
   );
 
-  // Highlight rails sit above the category grid, pulling items tagged with
-  // specific badges. A rail only renders when the restaurant has actually
-  // tagged something with it — no empty "Fast Moving" shelf on day one.
-  const highlightRails = useMemo(() => {
-    const rails = [
-      { badgeId: 'fast_moving', title: 'Fast Moving' },
-      { badgeId: 'popular', title: 'Customer Favourites' },
-    ];
-    return rails
-      .map((rail) => ({ ...rail, items: menuItems.filter((i) => i.badges?.includes(rail.badgeId) && i.available !== false && !i.soldOut) }))
-      .filter((rail) => rail.items.length > 0);
+  // Hero food image: a real photo from the restaurant's own menu (prefers
+  // a badged item, falls back to any available item with an image). If
+  // nothing has an image yet, the hero simply renders without one rather
+  // than showing a placeholder photo.
+  const heroItem = useMemo(() => {
+    const withImage = menuItems.filter((i) => i.imageUrl && i.available !== false && !i.soldOut);
+    if (withImage.length === 0) return null;
+    return withImage.find((i) => i.badges?.some((b) => b === 'popular' || b === 'fast_moving')) || withImage[0];
   }, [menuItems]);
+
+  const scrollToMenu = () => {
+    document.getElementById('menu-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handlePlaceOrder = async () => {
     if (cart.items.length === 0) return;
@@ -252,6 +338,12 @@ function MenuContent({ restaurant, restaurantId, table, isGuest, authError }) {
         customerPhone,
       });
       cart.clearCart();
+      try {
+        sessionStorage.setItem(lastOrderKey, result.orderId);
+      } catch {
+        /* sessionStorage unavailable — "track order" link just won't show */
+      }
+      setLastOrderId(result.orderId);
       navigate(`/order/${result.orderId}`, { state: { justPlaced: true } });
     } catch (err) {
       toast.error(err.message || 'Could not place your order. Please try again.');
@@ -274,56 +366,179 @@ function MenuContent({ restaurant, restaurantId, table, isGuest, authError }) {
           <div className="qr-intro-table">Table {table.tableNumber}</div>
         </div>
       )}
+
       <header className="customer-header">
-        {restaurant.logo ? (
-          <img src={restaurant.logo} alt="" className="restaurant-logo" />
-        ) : (
-          <div className="restaurant-logo restaurant-logo-fallback" aria-hidden="true">
-            {restaurant.name?.[0] || '🍽️'}
-          </div>
-        )}
-        <div>
+        <button className="header-icon-btn" aria-label="Menu" onClick={() => setInfoPanelOpen(true)}>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+        </button>
+
+        <div className="customer-header-brand">
+          {restaurant.logo ? (
+            <img src={restaurant.logo} alt="" className="restaurant-logo" />
+          ) : (
+            <div className="restaurant-logo restaurant-logo-fallback" aria-hidden="true">
+              {restaurant.name?.[0] || '🍽️'}
+            </div>
+          )}
           <h1>{restaurant.name}</h1>
-          <p>Table {table.tableNumber}</p>
+          <span className="customer-header-table">Table {table.tableNumber}</span>
+        </div>
+
+        <div className="header-icon-group">
+          <button className="header-icon-btn" aria-label="Restaurant info" onClick={() => setInfoPanelOpen(true)}>
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.8" /><path d="M5 20c1.2-4 4-6 7-6s5.8 2 7 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+          </button>
+          <button className="header-icon-btn header-cart-btn" aria-label="View cart" onClick={() => setCartOpen(true)}>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9.5" cy="20.5" r="1.3" fill="currentColor" /><circle cx="17.5" cy="20.5" r="1.3" fill="currentColor" /></svg>
+            {cart.itemCount > 0 && <span className="header-cart-badge">{cart.itemCount}</span>}
+          </button>
         </div>
       </header>
+
+      <div className="customer-search-row">
+        <div className="customer-search-bar">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" /><path d="m20 20-3.2-3.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+          <input
+            type="text"
+            placeholder="Search for dishes…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search the menu"
+          />
+        </div>
+        <button
+          className={`customer-filter-btn ${hideSoldOut ? 'active' : ''}`}
+          aria-label="Hide sold out items"
+          aria-pressed={hideSoldOut}
+          onClick={() => setHideSoldOut((v) => !v)}
+        >
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+        </button>
+      </div>
+
+      {!menuLoading && heroItem && (
+        <section className="customer-hero">
+          <div className="customer-hero-text">
+            <span className="customer-hero-eyebrow">{restaurant.name}</span>
+            <h2>Good Food.<br />Great Moments.</h2>
+            <p>Fresh flavours, made to order — browse the menu and send your order straight to the kitchen.</p>
+            <button className="customer-hero-cta" onClick={scrollToMenu}>
+              View Menu
+              <svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          </div>
+          <div className="customer-hero-media">
+            <img src={heroItem.imageUrl} alt={heroItem.name} />
+          </div>
+        </section>
+      )}
 
       {menuLoading ? (
         <Loading label="Loading menu items…" />
       ) : (
         <>
-          {highlightRails.map((rail) => (
-            <HighlightRail key={rail.badgeId} title={rail.title} badgeId={rail.badgeId} items={rail.items} />
-          ))}
-
-          <div className="category-tabs">
+          <div className="category-icons">
             {categories.map((cat) => (
               <button
                 key={cat}
-                className={`category-tab ${activeCategory === cat ? 'active' : ''}`}
+                className={`category-icon ${activeCategory === cat ? 'active' : ''}`}
                 onClick={() => setActiveCategory(cat)}
               >
-                {cat}
+                <span className="category-icon-circle" aria-hidden="true">{categoryEmoji(cat)}</span>
+                <span className="category-icon-label">{cat}</span>
               </button>
             ))}
           </div>
 
-          {visibleItems.length === 0 ? (
-            <EmptyState icon="🍽️" title="No items yet" description="This restaurant hasn't added menu items in this category." />
-          ) : (
-            <div className="menu-grid" key={activeCategory}>
-              {visibleItems.map((item) => (
-                <MenuItemCard key={item.id} item={item} onOpenDetails={setDetailItem} />
-              ))}
-            </div>
+          {popularItems.length > 0 && (
+            <section className="popular-section">
+              <div className="popular-section-head">
+                <h2>Popular Dishes</h2>
+                <button className="popular-view-all" onClick={scrollToMenu}>
+                  View All <span aria-hidden="true">→</span>
+                </button>
+              </div>
+              <div className="popular-scroll">
+                {popularItems.map((item) => (
+                  <PopularCard key={item.id} item={item} onOpenDetails={setDetailItem} />
+                ))}
+              </div>
+            </section>
           )}
+
+          <section id="menu-section" className="complete-menu">
+            {groupedMenu.length === 0 ? (
+              <EmptyState
+                icon="🍽️"
+                title="No items found"
+                description={
+                  searchQuery
+                    ? `Nothing matches "${searchQuery}".`
+                    : "This restaurant hasn't added menu items in this category."
+                }
+              />
+            ) : (
+              groupedMenu.map(([category, items]) => (
+                <div className="menu-category-block" key={category}>
+                  <h3 className="menu-category-heading">{category}</h3>
+                  <div className="menu-grid">
+                    {items.map((item) => (
+                      <MenuItemCard key={item.id} item={item} onOpenDetails={setDetailItem} />
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </section>
         </>
       )}
 
       {cart.itemCount > 0 && (
         <button className={`cart-fab ${cartBump ? 'bump' : ''}`} onClick={() => setCartOpen(true)}>
-          🛒 {cart.itemCount} item{cart.itemCount > 1 ? 's' : ''} · {formatLKR(cart.subtotal)}
+          <span>
+            {cart.itemCount} item{cart.itemCount > 1 ? 's' : ''} · {formatLKR(cart.subtotal)}
+          </span>
+          <span className="cart-fab-cta">
+            View Cart <span aria-hidden="true">→</span>
+          </span>
         </button>
+      )}
+
+      <nav className="bottom-nav">
+        <button className="bottom-nav-item" onClick={scrollToTop}>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 11.5 12 4l8 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><path d="M6 10v9h12v-9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <span>Home</span>
+        </button>
+        <button className="bottom-nav-item" onClick={scrollToMenu}>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M6 4v16M6 4h11a3 3 0 0 1 0 6H6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <span>Menu</span>
+        </button>
+        <button className="bottom-nav-order" onClick={() => setCartOpen(true)} aria-label="View order">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+        <button className="bottom-nav-item" onClick={() => setInfoPanelOpen(true)}>
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="6" cy="12" r="1.4" fill="currentColor" /><circle cx="12" cy="12" r="1.4" fill="currentColor" /><circle cx="18" cy="12" r="1.4" fill="currentColor" /></svg>
+          <span>More</span>
+        </button>
+      </nav>
+
+      {infoPanelOpen && (
+        <div className="food-sheet-overlay" onClick={() => setInfoPanelOpen(false)}>
+          <div className="food-sheet info-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="food-sheet-handle" />
+            <h2>{restaurant.name}</h2>
+            <p className="food-sheet-desc">Table {table.tableNumber} · dine-in</p>
+            <p className="food-sheet-desc">
+              Browse the menu, add what you'd like, and send your order straight to the kitchen — no need to flag
+              down a waiter.
+            </p>
+            {lastOrderId && (
+              <button className="food-sheet-cta" onClick={() => navigate(`/order/${lastOrderId}`)}>
+                Track your last order
+              </button>
+            )}
+          </div>
+        </div>
       )}
 
       {detailItem && <FoodSheet item={detailItem} onClose={() => setDetailItem(null)} />}
@@ -351,15 +566,11 @@ function MenuContent({ restaurant, restaurantId, table, isGuest, authError }) {
                         <span>{formatLKR(item.price)}</span>
                       </div>
                       <div className="qty-controls">
-                        <button
-                          onClick={() => cart.updateQuantity(item.menuItemId, item.notes, item.quantity - 1)}
-                        >
+                        <button onClick={() => cart.updateQuantity(item.menuItemId, item.notes, item.quantity - 1)}>
                           −
                         </button>
                         <span>{item.quantity}</span>
-                        <button
-                          onClick={() => cart.updateQuantity(item.menuItemId, item.notes, item.quantity + 1)}
-                        >
+                        <button onClick={() => cart.updateQuantity(item.menuItemId, item.notes, item.quantity + 1)}>
                           +
                         </button>
                       </div>
@@ -393,9 +604,7 @@ function MenuContent({ restaurant, restaurantId, table, isGuest, authError }) {
 
                 {!isGuest && (
                   <p style={{ color: authError ? '#dc2626' : '#6b7280', fontSize: '0.9rem' }}>
-                    {authError
-                      ? `Could not start your session: ${authError}`
-                      : 'Setting up your session…'}
+                    {authError ? `Could not start your session: ${authError}` : 'Setting up your session…'}
                   </p>
                 )}
 
@@ -411,47 +620,53 @@ function MenuContent({ restaurant, restaurantId, table, isGuest, authError }) {
   );
 }
 
-function HighlightRail({ title, badgeId, items }) {
-  const badge = BADGE_BY_ID[badgeId];
+// Horizontal "Popular Dishes" carousel card — image + real badge (if any) +
+// name + description + price + circular add button. No rating is shown:
+// the schema has no rating/review data to show.
+function PopularCard({ item, onOpenDetails }) {
   const cart = useCart();
-  const [justAddedId, setJustAddedId] = useState(null);
+  const [justAdded, setJustAdded] = useState(false);
+  const badgeId = item.badges?.find((b) => b === 'popular' || b === 'fast_moving' || b === 'chef_special');
+  const badge = badgeId ? BADGE_BY_ID[badgeId] : null;
 
-  const handleAdd = (item) => {
+  const handleAdd = (e) => {
+    e.stopPropagation();
     cart.addItem(item, 1, '');
-    setJustAddedId(item.id);
-    setTimeout(() => setJustAddedId((cur) => (cur === item.id ? null : cur)), 400);
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 400);
   };
 
   return (
-    <section className="highlight-rail">
-      <h2 className="highlight-rail-title">
-        <span aria-hidden="true">{badge?.emoji}</span> {title}
-      </h2>
-      <div className="highlight-rail-scroll">
-        {items.map((item) => (
-          <div key={item.id} className="highlight-card">
-            <div className="highlight-card-media">
-              {item.imageUrl ? (
-                <img src={item.imageUrl} alt={item.name} />
-              ) : (
-                <div className="menu-card-image-fallback" aria-hidden="true">
-                  🍽️
-                </div>
-              )}
-              <button
-                className={`highlight-card-add ${justAddedId === item.id ? 'just-added' : ''}`}
-                aria-label={`Add ${item.name}`}
-                onClick={() => handleAdd(item)}
-              >
-                +
-              </button>
-            </div>
-            <strong className="highlight-card-name">{item.name}</strong>
-            <span className="highlight-card-price">{formatLKR(item.price)}</span>
+    <div className="popular-card" onClick={() => onOpenDetails?.(item)} role="button" tabIndex={0}>
+      <div className="popular-card-media">
+        {item.imageUrl ? (
+          <img src={item.imageUrl} alt={item.name} />
+        ) : (
+          <div className="menu-card-image-fallback" aria-hidden="true">
+            🍽️
           </div>
-        ))}
+        )}
+        {badge && (
+          <span className="popular-card-badge" style={{ '--badge-color': badge.color }}>
+            {badge.emoji} {badge.label}
+          </span>
+        )}
       </div>
-    </section>
+      <div className="popular-card-body">
+        <strong>{item.name}</strong>
+        {item.description && <p>{item.description}</p>}
+        <div className="popular-card-footer">
+          <span>{formatLKR(item.price)}</span>
+          <button
+            className={`popular-card-add ${justAdded ? 'just-added' : ''}`}
+            aria-label={`Add ${item.name}`}
+            onClick={handleAdd}
+          >
+            +
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

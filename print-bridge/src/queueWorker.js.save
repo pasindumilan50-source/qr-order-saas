@@ -1,0 +1,237 @@
+import { formatKotTicket as defaultFormatKotTicket } from './kotFormatter.js';
+c
+// Core worker loop.
+//
+// Discovery: Realtime notification (fast path) + periodic polling
+// (reconciliation / backstop for missed Realtime events), per Phase 4
+// section 8. Both paths call the SAME reconcile() method, so there is
+// never more than one code path doing discovery.
+//
+// Claiming: ONLY ever through the `claim_kot_print_job` RPC (section 9).
+// This worker never writes directly to kot_print_jobs.status. The
+// database's `for update skip locked` inside that RPC is the sole
+// concurrency authority — if claim_kot_print_job returns null, this worker
+// treats the job as "someone/something else got it" and moves on without
+// printing it or marking it failed, exactly as required.
+//
+// Concurrency: `this.busy` restricts this worker to one active job at a
+// time (section 10), preventing KOT order mixing.
+//
+// Safety: a print result flagged `simulated: true` (from
+// DevelopmentPrinterAdapter) is NEVER reported as printed — see
+// processClaimedJob(). This is the load-bearing safety check for
+// "never fake a successful print."
+export class QueueWorker {
+  constructor({
+    supabase,
+    restaurantId,
+    printerAdapter,
+    logger,
+    statusStore,
+    formatKotTicket = defaultFormatKotTicket,
+    fetchLimit = 20,
+  }) {
+    this.supabase = supabase;
+    this.restaurantId = restaurantId;
+    this.printerAdapter = printerAdapter;
+    this.logger = logger;
+    this.statusStore = statusStore;
+    this.formatKotTicket = formatKotTicket;
+    this.fetchLimit = fetchLimit;
+
+    this.busy = false;
+    this.stopped = false;
+    this.pollTimer = null;
+    this.realtimeChannel = null;
+  }
+
+  start(pollIntervalMs) {
+    // Fire an initial reconcile immediately so the bridge doesn't sit idle
+    // for a full poll interval on startup, then keep polling as the
+    // reliability backstop.
+    this.reconcile();
+    this.pollTimer = setInterval(() => this.reconcile(), pollIntervalMs);
+
+    this.realtimeChannel = this.supabase
+      .channel(`kot-print-jobs-bridge-${this.restaurantId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'kot_print_jobs',
+          filter: `restaurant_id=eq.${this.restaurantId}`,
+        },
+        () => this.reconcile()
+      )
+      .subscribe((status) => {
+        this.logger.info('realtime_subscription_status', { status });
+      });
+  }
+
+  async stop() {
+    this.stopped = true;
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+    if (this.realtimeChannel) {
+      await this.supabase.removeChannel(this.realtimeChannel);
+      this.realtimeChannel = null;
+    }
+  }
+
+  // Looks for queued work and, if not already busy with a job, attempts to
+  // claim and process at most one job per call. Safe to call redundantly
+  // (from both Realtime and the poll timer) — see the class doc comment
+  // for why concurrent calls can't double-claim.
+  async reconcile() {
+    if (this.busy || this.stopped) return;
+
+    let candidates;
+    try {
+      const { data, error } = await this.supabase
+        .from('kot_print_jobs')
+        .select('id, order_id, queued_at')
+        .eq('restaurant_id', this.restaurantId)
+        .eq('status', 'queued')
+        .order('queued_at', { ascending: true })
+        .limit(this.fetchLimit);
+      if (error) throw error;
+      candidates = data ?? [];
+      this.logger.info('reconcile_candidates', {
+        count: candidates.length,
+        candidates,
+      });
+
+this.statusStore?.setSupabaseConnected(true);
+    } catch (err) {
+      this.statusStore?.setSupabaseConnected(false);
+      this.statusStore?.setLastError(err.message);
+      this.logger.warn('reconcile_fetch_failed', { error: err.message });
+      return;
+    }
+
+    for (const candidate of candidates) {
+      if (this.busy || this.stopped) return;
+      const processed = await this.tryClaimAndProcess(candidate.id);
+      // One job at a time: stop this cycle after successfully claiming
+      // and finishing one job. The next Realtime event or poll tick will
+      // pick up remaining queued jobs.
+      if (processed) return;
+    }
+  }
+
+  async tryClaimAndProcess(jobId) {
+    this.busy = true;
+    try {
+      const { data: job, error } = await this.supabase.rpc('claim_kot_print_job', {
+        p_job_id: jobId,
+      });
+      if (error) throw error;
+
+      if (!job) {
+        // Not found, already claimed by another worker, or no longer
+        // queued. This is an expected, non-error outcome (section 9) —
+        // do not print, do not mark failed, just keep looking.
+        this.logger.debug('job_claim_missed', { jobId });
+        return false;
+      }
+
+      this.logger.info('job_claimed', { jobId: job.id, orderId: job.order_id });
+      this.statusStore?.setCurrentJob({
+        id: job.id,
+        orderId: job.order_id,
+        tableNumber: job.kot_snapshot?.tableNumber ?? null,
+        claimedAt: job.claimed_at,
+      });
+
+      await this.processClaimedJob(job);
+      return true;
+    } catch (err) {
+      this.statusStore?.setLastError(err.message);
+      this.logger.error('claim_failed', { jobId, error: err.message });
+      return false;
+    } finally {
+      this.busy = false;
+      this.statusStore?.setCurrentJob(null);
+    }
+  }
+
+  async processClaimedJob(job) {
+    let ticket;
+    try {
+      ticket = this.formatKotTicket(job.kot_snapshot);
+    } catch (err) {
+      this.logger.error('kot_format_failed', { jobId: job.id, error: err.message });
+      await this.markFailedSafely(job.id, `Malformed KOT snapshot: ${err.message}`);
+      return;
+    }
+
+    this.logger.info('print_started', { jobId: job.id, orderId: job.order_id });
+
+    let result;
+    try {
+      result = await this.printerAdapter.printKot(ticket);
+    } catch (err) {
+      this.logger.error('printer_adapter_threw', { jobId: job.id, error: err.message });
+      await this.markFailedSafely(job.id, `Printer adapter error: ${err.message}`);
+      return;
+    }
+
+    // Load-bearing safety check: a simulated (development/mock) result is
+    // NEVER allowed to resolve the job, in either direction. The job is
+    // deliberately left in `printing` — see PrinterAdapter.js and README
+    // "Test mode" for why this is the intended behavior, not a bug.
+    if (result?.simulated) {
+      this.logger.warn('job_left_in_printing_dev_mode', {
+        jobId: job.id,
+        orderId: job.order_id,
+        note:
+          'Development/mock printer adapter was used. No real print occurred. ' +
+          'This job was intentionally NOT marked printed or failed and remains ' +
+          "'printing' in the database. Set MOCK_PRINTER=false with a real " +
+          'printer adapter for production use.',
+      });
+      return;
+    }
+
+    if (result?.success) {
+      await this.markPrintedSafely(job.id);
+    } else {
+      await this.markFailedSafely(
+        job.id,
+        result?.error || 'Printer adapter reported failure with no further detail.'
+      );
+    }
+  }
+
+  async markPrintedSafely(jobId) {
+    try {
+      const { error } = await this.supabase.rpc('mark_kot_print_job_printed', { p_job_id: jobId });
+      if (error) throw error;
+      this.logger.info('print_succeeded', { jobId });
+      this.statusStore?.setLastSuccessfulPrint({ id: jobId, printedAt: new Date().toISOString() });
+    } catch (err) {
+      // The printer already produced physical output at this point but we
+      // could not record it. This is intentionally NOT retried as a
+      // reprint — see README "Known limitations" / Phase 4 section 14.
+      this.logger.error('mark_printed_call_failed', { jobId, error: err.message });
+      this.statusStore?.setLastError(err.message);
+    }
+  }
+
+  async markFailedSafely(jobId, reason) {
+    try {
+      const { error } = await this.supabase.rpc('mark_kot_print_job_failed', {
+        p_job_id: jobId,
+        p_error: reason,
+      });
+      if (error) throw error;
+      this.logger.warn('print_failed', { jobId, reason });
+    } catch (err) {
+      this.logger.error('mark_failed_call_failed', { jobId, error: err.message });
+      this.statusStore?.setLastError(err.message);
+    }
+  }
+}

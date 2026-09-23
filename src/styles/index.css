@@ -661,23 +661,22 @@ th {
 }
 
 /* ---------- Customer-facing menu ---------- */
-/* A self-contained palette for the customer ordering experience — distinct
-   from the admin/staff dashboards' indigo system, and deliberately not the
-   generic "cream background + single terracotta accent" look: the page
-   field is dark ink, warmth is reserved for card surfaces and two accent
-   hues (chili + turmeric) doing different jobs. */
+/* Same indigo / black / white system as the admin dashboards — these
+   custom properties are just aliases onto the shared --color-* root
+   tokens, plus two on-dark-background text shades the root tokens don't
+   provide, so every selector below still works unchanged. */
 .customer-page {
-  --menu-ink: #1a1614;
-  --menu-ink-soft: #2a2320;
-  --menu-paper: #fbf8f3;
-  --menu-paper-dim: #efe9de;
-  --menu-chili: #e8462d;
-  --menu-chili-dark: #c73a24;
-  --menu-turmeric: #e8a93d;
-  --menu-text-on-ink: #f2ece1;
-  --menu-text-on-ink-muted: #b8afa3;
-  --menu-text: #241d18;
-  --menu-text-muted: #746b60;
+  --menu-ink: #0f172a;
+  --menu-ink-soft: #1e293b;
+  --menu-paper: var(--color-surface);
+  --menu-paper-dim: var(--color-bg);
+  --menu-chili: var(--color-primary);
+  --menu-chili-dark: var(--color-primary-dark);
+  --menu-turmeric: var(--color-primary);
+  --menu-text-on-ink: #f8fafc;
+  --menu-text-on-ink-muted: #94a3b8;
+  --menu-text: var(--color-text);
+  --menu-text-muted: var(--color-text-muted);
 
   max-width: 640px;
   margin: 0 auto;
@@ -1675,7 +1674,7 @@ th {
   margin-top: 8px;
   font-size: 12px;
   font-weight: 700;
-  color: var(--menu-ink);
+  color: white;
   background: var(--menu-turmeric);
   padding: 6px 16px;
   border-radius: 999px;

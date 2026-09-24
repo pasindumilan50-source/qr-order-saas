@@ -18,6 +18,13 @@ function toRestaurant(row) {
     status: row.is_active ? 'active' : 'disabled',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    heroLabel: row.hero_label || '',
+    heroHeading: row.hero_heading || '',
+    heroDescription: row.hero_description || '',
+    heroButtonText: row.hero_button_text || '',
+    heroFontFamily: row.hero_font_family || '',
+    heroFontSize: row.hero_font_size || '',
+    heroFontWeight: row.hero_font_weight || '',
   };
 }
 
@@ -98,6 +105,21 @@ export async function updateRestaurantProfile(restaurantId, fields) {
     p_phone: 'phone' in fields ? fields.phone : null,
     p_email: 'email' in fields ? fields.email : null,
     p_logo_url: 'logo' in fields ? fields.logo : null,
+  });
+  if (error) throw error;
+}
+
+export async function updateRestaurantHero(restaurantId, fields) {
+  const { error } = await supabase.rpc('update_restaurant_hero', {
+    p_restaurant_id: restaurantId,
+    p_hero_label: 'heroLabel' in fields ? fields.heroLabel : null,
+    p_hero_heading: 'heroHeading' in fields ? fields.heroHeading : null,
+    p_hero_description: 'heroDescription' in fields ? fields.heroDescription : null,
+    p_hero_button_text: 'heroButtonText' in fields ? fields.heroButtonText : null,
+    p_hero_font_family: 'heroFontFamily' in fields ? fields.heroFontFamily : null,
+    p_hero_font_size: 'heroFontSize' in fields ? fields.heroFontSize : null,
+    p_hero_font_weight: 'heroFontWeight' in fields ? fields.heroFontWeight : null,
+    p_clear: fields.clear === true,
   });
   if (error) throw error;
 }

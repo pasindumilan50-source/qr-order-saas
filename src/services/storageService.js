@@ -38,3 +38,11 @@ export async function uploadMenuImage(restaurantId, file) {
 export async function uploadRestaurantLogo(restaurantId, file) {
   return uploadToBucket(restaurantId, 'logo', file);
 }
+
+export async function uploadHeroImage(restaurantId, file) {
+  return uploadToBucket(restaurantId, 'hero', file);
+}
+
+export async function uploadPromoImage(restaurantId, file) {
+  return uploadToBucket(restaurantId, 'promo', file);
+}

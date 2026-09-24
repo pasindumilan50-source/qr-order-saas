@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { getRestaurant, updateRestaurantProfile } from '../../services/restaurantService';
-import { uploadRestaurantLogo } from '../../services/storageService';
+import { getRestaurant, updateRestaurantProfile, updateRestaurantHero } from '../../services/restaurantService';
+import { uploadRestaurantLogo, uploadHeroImage, uploadPromoImage } from '../../services/storageService';
+import {
+  listenHeroSlides,
+  addHeroSlide,
+  deleteHeroSlide,
+  listenPromotions,
+  addPromotion,
+  updatePromotion,
+  deletePromotion,
+} from '../../services/homeContentService';
 import {
   getPrinterSettings,
   savePrinterSettings,
@@ -17,6 +26,38 @@ const DEFAULT_PRINTER_FORM = {
   ipAddress: '',
   port: '9100',
 };
+
+const DEFAULT_HERO_FORM = {
+  heroLabel: '',
+  heroHeading: '',
+  heroDescription: '',
+  heroButtonText: '',
+  heroFontFamily: '',
+  heroFontSize: '',
+  heroFontWeight: '',
+};
+
+const FONT_FAMILY_OPTIONS = [
+  { value: '', label: 'Default' },
+  { value: 'Georgia, serif', label: 'Elegant Serif (Georgia)' },
+  { value: '"Times New Roman", serif', label: 'Classic Serif (Times New Roman)' },
+  { value: 'Arial, sans-serif', label: 'Clean Sans (Arial)' },
+  { value: '"Helvetica Neue", sans-serif', label: 'Modern Sans (Helvetica)' },
+];
+const FONT_SIZE_OPTIONS = [
+  { value: '', label: 'Default' },
+  { value: '28px', label: 'Small' },
+  { value: '34px', label: 'Medium' },
+  { value: '40px', label: 'Large' },
+  { value: '48px', label: 'Extra large' },
+];
+const FONT_WEIGHT_OPTIONS = [
+  { value: '', label: 'Default' },
+  { value: '400', label: 'Normal' },
+  { value: '500', label: 'Medium' },
+  { value: '600', label: 'Semibold' },
+  { value: '700', label: 'Bold' },
+];
 
 export default function SettingsPage() {
   const { restaurantId } = useAuth();
@@ -40,6 +81,21 @@ export default function SettingsPage() {
   const [error, setError] = useState('');
   const [printerError, setPrinterError] = useState('');
 
+  const [heroForm, setHeroForm] = useState(DEFAULT_HERO_FORM);
+  const [savingHero, setSavingHero] = useState(false);
+  const [heroError, setHeroError] = useState('');
+
+  const [heroSlides, setHeroSlides] = useState([]);
+  const [newSlideFile, setNewSlideFile] = useState(null);
+  const [uploadingSlide, setUploadingSlide] = useState(false);
+  const [slideError, setSlideError] = useState('');
+
+  const [promotions, setPromotions] = useState([]);
+  const [newPromoFile, setNewPromoFile] = useState(null);
+  const [newPromoText, setNewPromoText] = useState('');
+  const [savingPromo, setSavingPromo] = useState(false);
+  const [promoError, setPromoError] = useState('');
+
   useEffect(() => {
     async function load() {
       try {
@@ -55,6 +111,16 @@ export default function SettingsPage() {
           address: restaurantData?.address || '',
           phone: restaurantData?.phone || '',
           email: restaurantData?.email || '',
+        });
+
+        setHeroForm({
+          heroLabel: restaurantData?.heroLabel || '',
+          heroHeading: restaurantData?.heroHeading || '',
+          heroDescription: restaurantData?.heroDescription || '',
+          heroButtonText: restaurantData?.heroButtonText || '',
+          heroFontFamily: restaurantData?.heroFontFamily || '',
+          heroFontSize: restaurantData?.heroFontSize || '',
+          heroFontWeight: restaurantData?.heroFontWeight || '',
         });
 
         setPrinter(printerData);
@@ -81,8 +147,30 @@ export default function SettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId]);
 
+  useEffect(() => {
+    if (!restaurantId) return;
+    const unsubSlides = listenHeroSlides(restaurantId, setHeroSlides, () =>
+      toast.error('Could not load hero images.')
+    );
+    // Promotions here show every promotion, active or not — staff need to
+    // see disabled ones to re-enable them (the customer Home page filters
+    // to isActive on its own).
+    const unsubPromos = listenPromotions(restaurantId, setPromotions, () =>
+      toast.error('Could not load promotions.')
+    );
+    return () => {
+      unsubSlides();
+      unsubPromos();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurantId]);
+
   const update = (field) => (e) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
+  };
+
+  const updateHero = (field) => (e) => {
+    setHeroForm((f) => ({ ...f, [field]: e.target.value }));
   };
 
   const updatePrinter = (field) => (e) => {
@@ -127,6 +215,80 @@ export default function SettingsPage() {
       setError(err.message || 'Could not save settings.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleHeroSubmit = async (e) => {
+    e.preventDefault();
+    setHeroError('');
+    setSavingHero(true);
+    try {
+      await updateRestaurantHero(restaurantId, heroForm);
+      setRestaurant((r) => (r ? { ...r, ...heroForm } : r));
+      toast.success('Hero section saved.');
+    } catch (err) {
+      setHeroError(err.message || 'Could not save hero settings.');
+    } finally {
+      setSavingHero(false);
+    }
+  };
+
+  const handleAddSlide = async () => {
+    if (!newSlideFile) return;
+    setSlideError('');
+    setUploadingSlide(true);
+    try {
+      const url = await uploadHeroImage(restaurantId, newSlideFile);
+      await addHeroSlide(restaurantId, url, heroSlides.length);
+      setNewSlideFile(null);
+    } catch (err) {
+      setSlideError(err.message || 'Could not add hero image.');
+    } finally {
+      setUploadingSlide(false);
+    }
+  };
+
+  const handleDeleteSlide = async (slideId) => {
+    try {
+      await deleteHeroSlide(slideId);
+    } catch (err) {
+      toast.error(err.message || 'Could not remove that image.');
+    }
+  };
+
+  const handleAddPromotion = async () => {
+    if (!newPromoText.trim()) {
+      setPromoError('Promotion text is required.');
+      return;
+    }
+    setPromoError('');
+    setSavingPromo(true);
+    try {
+      let imageUrl = '';
+      if (newPromoFile) imageUrl = await uploadPromoImage(restaurantId, newPromoFile);
+      await addPromotion(restaurantId, { imageUrl, text: newPromoText.trim() }, promotions.length);
+      setNewPromoFile(null);
+      setNewPromoText('');
+    } catch (err) {
+      setPromoError(err.message || 'Could not add promotion.');
+    } finally {
+      setSavingPromo(false);
+    }
+  };
+
+  const handleTogglePromoActive = async (promo) => {
+    try {
+      await updatePromotion(promo.id, { isActive: !promo.isActive });
+    } catch (err) {
+      toast.error(err.message || 'Could not update that promotion.');
+    }
+  };
+
+  const handleDeletePromotion = async (promoId) => {
+    try {
+      await deletePromotion(promoId);
+    } catch (err) {
+      toast.error(err.message || 'Could not delete that promotion.');
     }
   };
 
@@ -275,6 +437,172 @@ export default function SettingsPage() {
           {saving ? 'Saving…' : 'Save changes'}
         </button>
       </form>
+
+      <section className="settings-section">
+        <h2>Home Page — Hero</h2>
+        <p className="form-hint">
+          This is the banner customers see first when they scan your QR code. Leave anything blank to use the
+          default.
+        </p>
+
+        <form className="settings-form" onSubmit={handleHeroSubmit}>
+          <label>
+            Small label
+            <input value={heroForm.heroLabel} onChange={updateHero('heroLabel')} placeholder="Good Food" maxLength={60} />
+          </label>
+          <label>
+            Main heading
+            <input
+              value={heroForm.heroHeading}
+              onChange={updateHero('heroHeading')}
+              placeholder="Good Food. Good Mood."
+              maxLength={120}
+            />
+          </label>
+          <label>
+            Description
+            <textarea
+              value={heroForm.heroDescription}
+              onChange={updateHero('heroDescription')}
+              placeholder="Fresh ingredients and unforgettable experiences."
+              maxLength={240}
+              rows={2}
+            />
+          </label>
+          <label>
+            Button text
+            <input
+              value={heroForm.heroButtonText}
+              onChange={updateHero('heroButtonText')}
+              placeholder="View Menu"
+              maxLength={40}
+            />
+          </label>
+          <label>
+            Heading font
+            <select value={heroForm.heroFontFamily} onChange={updateHero('heroFontFamily')}>
+              {FONT_FAMILY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Heading size
+            <select value={heroForm.heroFontSize} onChange={updateHero('heroFontSize')}>
+              {FONT_SIZE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Heading weight
+            <select value={heroForm.heroFontWeight} onChange={updateHero('heroFontWeight')}>
+              {FONT_WEIGHT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {heroError && <p className="form-error">{heroError}</p>}
+
+          <button type="submit" className="btn btn-primary" disabled={savingHero}>
+            {savingHero ? 'Saving…' : 'Save hero text'}
+          </button>
+        </form>
+
+        <div className="hero-slides-manager">
+          <p className="form-hint">Hero images — up to 4. Shown as an automatic slideshow when you have more than one.</p>
+          <div className="hero-slides-grid">
+            {heroSlides.map((slide) => (
+              <div className="hero-slide-thumb" key={slide.id}>
+                <img src={slide.imageUrl} alt="" />
+                <button
+                  type="button"
+                  className="hero-slide-remove"
+                  aria-label="Remove image"
+                  onClick={() => handleDeleteSlide(slide.id)}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+          {heroSlides.length < 4 ? (
+            <div className="input-with-action">
+              <input type="file" accept="image/*" onChange={(e) => setNewSlideFile(e.target.files?.[0] || null)} />
+              <button type="button" className="btn btn-small btn-primary" onClick={handleAddSlide} disabled={!newSlideFile || uploadingSlide}>
+                {uploadingSlide ? 'Uploading…' : 'Add image'}
+              </button>
+            </div>
+          ) : (
+            <p className="form-hint">You've reached the 4-image limit — remove one to add another.</p>
+          )}
+          {slideError && <p className="form-error">{slideError}</p>}
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <h2>Home Page — Featured Items</h2>
+        <p className="form-hint">
+          Popular Items, Fast Moving, Chef's Choice, Best Sellers and Recommended are powered by the same
+          "Highlight badges" you already set per item on the <strong>Menu</strong> page — tag an item there and it
+          appears in the matching section automatically.
+        </p>
+      </section>
+
+      <section className="settings-section">
+        <h2>Home Page — Promotions</h2>
+        <p className="form-hint">Shown as a swipeable carousel on the customer Home page. Only active promotions are shown to customers.</p>
+
+        <div className="promo-list">
+          {promotions.length === 0 && <p className="form-hint">No promotions yet.</p>}
+          {promotions.map((promo) => (
+            <div className="promo-row" key={promo.id}>
+              {promo.imageUrl ? (
+                <img src={promo.imageUrl} alt="" className="promo-row-media" />
+              ) : (
+                <div className="promo-row-media promo-row-media--empty">No image</div>
+              )}
+              <div className="promo-row-body">
+                <span>{promo.text}</span>
+                <label className="promo-row-toggle">
+                  <input type="checkbox" checked={promo.isActive} onChange={() => handleTogglePromoActive(promo)} />
+                  Active
+                </label>
+              </div>
+              <button type="button" className="btn btn-small btn-ghost" onClick={() => handleDeletePromotion(promo.id)}>
+                Delete
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="promo-add-form">
+          <label>
+            Promotion text
+            <input
+              value={newPromoText}
+              onChange={(e) => setNewPromoText(e.target.value)}
+              placeholder="20% OFF Weekend"
+              maxLength={120}
+            />
+          </label>
+          <label>
+            Image (optional)
+            <input type="file" accept="image/*" onChange={(e) => setNewPromoFile(e.target.files?.[0] || null)} />
+          </label>
+          {promoError && <p className="form-error">{promoError}</p>}
+          <button type="button" className="btn btn-primary" onClick={handleAddPromotion} disabled={savingPromo}>
+            {savingPromo ? 'Adding…' : 'Add promotion'}
+          </button>
+        </div>
+      </section>
 
       <section className="settings-section">
         <h2>Kitchen Printer</h2>

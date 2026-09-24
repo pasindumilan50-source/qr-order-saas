@@ -29,7 +29,9 @@ const KitchenDashboard = lazy(() => import('../pages/kitchen/KitchenDashboard'))
 const ReceptionLayout = lazy(() => import('../layouts/ReceptionLayout'));
 const ReceptionDashboard = lazy(() => import('../pages/reception/ReceptionDashboard'));
 
-const CustomerMenuPage = lazy(() => import('../pages/customer/CustomerMenuPage'));
+const CustomerLayout = lazy(() => import('../pages/customer/CustomerLayout'));
+const CustomerHomePage = lazy(() => import('../pages/customer/CustomerHomePage'));
+const CustomerFullMenuPage = lazy(() => import('../pages/customer/CustomerFullMenuPage'));
 const OrderStatusPage = lazy(() => import('../pages/customer/OrderStatusPage'));
 
 export default function AppRoutes() {
@@ -99,8 +101,14 @@ export default function AppRoutes() {
         </Route>
 
         {/* Customer (guest, QR-driven) */}
-        <Route path="/r/:restaurantSlug/table/:tableNumber" element={<CustomerMenuPage />} />
-        <Route path="/menu" element={<CustomerMenuPage />} />
+        <Route path="/r/:restaurantSlug/table/:tableNumber" element={<CustomerLayout />}>
+          <Route index element={<CustomerHomePage />} />
+          <Route path="menu" element={<CustomerFullMenuPage />} />
+        </Route>
+        <Route path="/menu" element={<CustomerLayout />}>
+          <Route index element={<CustomerHomePage />} />
+          <Route path="menu" element={<CustomerFullMenuPage />} />
+        </Route>
         <Route path="/order/:orderId" element={<OrderStatusPage />} />
 
         <Route path="*" element={<NotFound />} />

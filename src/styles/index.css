@@ -2643,3 +2643,39 @@ th {
   background: radial-gradient(120% 120% at 85% 40%, var(--menu-chili) 0%, var(--menu-chili-dark) 100%);
   opacity: 0.85;
 }
+
+/* Hero blend v2: media slides under the text area and fades out through an
+   overlay in the panel's own dark color, so there is no hard vertical edge. */
+.customer-hero {
+  position: relative;
+}
+.customer-hero-text {
+  position: relative;
+  z-index: 2;
+}
+.customer-hero-media {
+  flex: 1 1 65%;
+  margin-left: -22%;
+}
+.customer-hero-media img,
+.customer-hero-media-default {
+  -webkit-mask-image: none;
+  mask-image: none;
+  opacity: 1;
+}
+.customer-hero-media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    var(--menu-ink) 0%,
+    var(--menu-ink) 18%,
+    transparent 75%
+  );
+}
+.customer-hero-media .hero-dots {
+  z-index: 3;
+}

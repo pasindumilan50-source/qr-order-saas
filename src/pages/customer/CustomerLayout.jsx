@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useSearchParams, useParams, useNavigate, Outlet, useOutletContext } from 'react-router-dom';
 import { supabase, isSupabaseConfigured } from '../../supabase/config';
 import { useAuth } from '../../context/AuthContext';
@@ -10,6 +10,7 @@ import { createOrder } from '../../services/orderService';
 import { listenMenuItems } from '../../services/menuService';
 import { FoodSheet } from './menuComponents';
 import InvalidQRPage from './InvalidQRPage';
+import { buildTheme } from '../../utils/theme';
 
 export default function CustomerLayout() {
   // Supports both the canonical slug-based QR route (/r/:restaurantSlug/table/:tableNumber)
@@ -68,6 +69,8 @@ export default function CustomerLayout() {
           heroFontFamily: restaurantRow.hero_font_family || '',
           heroFontSize: restaurantRow.hero_font_size || '',
           heroFontWeight: restaurantRow.hero_font_weight || '',
+          themeBg: restaurantRow.theme_bg || '',
+          themeAccent: restaurantRow.theme_accent || '',
         };
         setRestaurant(restaurantData);
 
@@ -143,6 +146,8 @@ export default function CustomerLayout() {
                       heroFontFamily: payload.new.hero_font_family || '',
                       heroFontSize: payload.new.hero_font_size || '',
                       heroFontWeight: payload.new.hero_font_weight || '',
+                      themeBg: payload.new.theme_bg || '',
+                      themeAccent: payload.new.theme_accent || '',
                     }
                   : prev
               );
@@ -259,6 +264,23 @@ function CustomerShell({ restaurant, restaurantId, table, isGuest, authError }) 
     }
   };
 
+  // Restaurant-specific theme: CSS variables scoped to this page only.
+  // No saved theme -> null -> the stylesheet's default look is untouched.
+  const themeVars = useMemo(
+    () => buildTheme({ bg: restaurant.themeBg, accent: restaurant.themeAccent })?.vars,
+    [restaurant.themeBg, restaurant.themeAccent]
+  );
+
+  // Keep the area behind the page (overscroll / wide screens) on-theme too.
+  useEffect(() => {
+    if (!themeVars) return undefined;
+    const prev = document.body.style.background;
+    document.body.style.background = themeVars['--color-bg'];
+    return () => {
+      document.body.style.background = prev;
+    };
+  }, [themeVars]);
+
   const context = {
     restaurant,
     restaurantId,
@@ -272,7 +294,7 @@ function CustomerShell({ restaurant, restaurantId, table, isGuest, authError }) 
   };
 
   return (
-    <div className="customer-page">
+    <div className="customer-page" style={themeVars || undefined}>
       <Outlet context={context} />
 
       {cart.itemCount > 0 && (

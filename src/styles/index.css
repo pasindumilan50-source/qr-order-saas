@@ -824,7 +824,7 @@ th {
   top: -3px;
   right: -3px;
   background: var(--menu-chili);
-  color: white;
+  color: var(--on-primary, white);
   font-size: 10px;
   font-weight: 700;
   min-width: 16px;
@@ -855,7 +855,7 @@ th {
   align-items: center;
   justify-content: center;
   background: var(--menu-chili);
-  color: white;
+  color: var(--on-primary, white);
   font-weight: 700;
 }
 .customer-header-brand h1 {
@@ -920,7 +920,7 @@ th {
   border-radius: 50%;
   border: none;
   background: var(--menu-chili);
-  color: white;
+  color: var(--on-primary, white);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -988,8 +988,8 @@ th {
   gap: 6px;
   border: none;
   border-radius: 999px;
-  background: var(--menu-chili);
-  color: white;
+  background: var(--hero-cta-bg, var(--menu-chili));
+  color: var(--hero-cta-fg, white);
   font-size: 12.5px;
   font-weight: 700;
   padding: 9px 16px;
@@ -1257,7 +1257,7 @@ th {
   border-radius: 50%;
   border: none;
   background: var(--menu-chili);
-  color: white;
+  color: var(--on-primary, white);
   font-size: 15px;
   line-height: 1;
   cursor: pointer;
@@ -1446,7 +1446,7 @@ th {
   border-radius: 50%;
   border: none;
   background: var(--menu-chili);
-  color: white;
+  color: var(--on-primary, white);
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
@@ -1477,7 +1477,7 @@ th {
   bottom: 16px;
   z-index: 40;
   background: var(--menu-chili);
-  color: white;
+  color: var(--on-primary, white);
   border: none;
   border-radius: 16px;
   padding: 13px 16px;
@@ -2156,7 +2156,7 @@ th {
   align-items: center;
   justify-content: center;
   background: var(--menu-chili);
-  color: white;
+  color: var(--on-primary, white);
   font-size: 24px;
   font-weight: 700;
 }
@@ -2179,8 +2179,8 @@ th {
   margin-top: 8px;
   font-size: 12px;
   font-weight: 700;
-  color: white;
-  background: var(--menu-turmeric);
+  color: var(--hero-cta-fg, white);
+  background: var(--hero-cta-bg, var(--menu-turmeric));
   padding: 6px 16px;
   border-radius: 999px;
   opacity: 0;
@@ -2287,7 +2287,7 @@ th {
   border: none;
   border-radius: 14px;
   background: var(--menu-chili);
-  color: white;
+  color: var(--on-primary, white);
   font-size: 15px;
   font-weight: 700;
   padding: 15px;
@@ -2340,4 +2340,294 @@ th {
   margin-top: 10px;
   font-weight: 700;
   color: var(--color-text);
+}
+
+
+/* =========================================================================
+   Customer theming layer. Everything here falls back to the previous look
+   when no theme variables are set, so restaurants without a saved theme are
+   unchanged. Variables are set inline on .customer-page only — never on
+   :root — so a theme can't leak into the admin UI or another restaurant.
+   ========================================================================= */
+.customer-page input,
+.customer-page select,
+.customer-page textarea {
+  background: var(--color-input-bg, white);
+}
+.customer-page .btn-primary {
+  color: var(--on-primary, white);
+}
+.customer-page .btn-ghost:hover:not(:disabled) {
+  background: var(--color-hover, #f1f5f9);
+}
+
+/* ---------- Admin: Customer theme editor ---------- */
+.theme-editor {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+@media (min-width: 900px) {
+  .theme-editor {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+  .theme-preview-col {
+    position: sticky;
+    top: 16px;
+  }
+}
+.theme-block {
+  margin-bottom: 20px;
+}
+.theme-block > h3 {
+  font-size: 14px;
+  margin: 0 0 8px;
+  color: var(--color-text);
+}
+.theme-presets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+.theme-preset {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.theme-preset.selected {
+  border-color: var(--color-primary);
+}
+.theme-preset-chip {
+  height: 34px;
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+.theme-preset-chip i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+.theme-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.theme-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  cursor: pointer;
+  padding: 0;
+}
+.theme-swatch.selected {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.theme-color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.theme-color-row input[type='color'] {
+  width: 48px;
+  height: 40px;
+  padding: 2px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.theme-color-row input[type='text'] {
+  width: 110px;
+  font-family: ui-monospace, monospace;
+}
+.theme-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Live preview: a small phone-shaped mock of the customer page. It reads the
+   same CSS variables the real page does. */
+.tp-frame {
+  border: 6px solid #111827;
+  border-radius: 26px;
+  overflow: hidden;
+  background: #111827;
+  max-width: 340px;
+  margin: 0 auto;
+}
+.tp {
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding-bottom: 14px;
+  font-size: 13px;
+  transition: background 0.2s ease, color 0.2s ease;
+  max-height: 560px;
+  overflow-y: auto;
+}
+.tp p {
+  color: var(--color-text-muted);
+  margin: 0;
+}
+.tp-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+.tp-logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--on-primary, white);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  overflow: hidden;
+  flex: none;
+}
+.tp-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.tp-name {
+  font-weight: 700;
+  line-height: 1.1;
+}
+.tp-table {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+.tp-cart {
+  margin-left: auto;
+  background: var(--color-primary);
+  color: var(--on-primary, white);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.tp-hero,
+.tp-promo {
+  margin: 12px;
+  padding: 16px 14px;
+  border-radius: 14px;
+  background: linear-gradient(155deg, var(--menu-ink, #0f172a) 0%, var(--menu-ink-soft, #1e293b) 100%);
+  color: var(--menu-text-on-ink, #f8fafc);
+}
+.tp-hero small {
+  color: var(--menu-text-on-ink-muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+}
+.tp-hero h4 {
+  margin: 4px 0 6px;
+  font-size: 19px;
+  line-height: 1.15;
+}
+.tp-hero p {
+  color: var(--menu-text-on-ink-muted, #94a3b8);
+  margin-bottom: 10px;
+}
+.tp-cta {
+  display: inline-block;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+  background: var(--hero-cta-bg, var(--color-primary));
+  color: var(--hero-cta-fg, white);
+}
+.tp-h {
+  margin: 14px 12px 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.tp-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 12px;
+}
+.tp-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.tp-card-img {
+  height: 54px;
+  background: var(--color-border);
+}
+.tp-card-body {
+  padding: 8px;
+  position: relative;
+}
+.tp-card-body strong {
+  display: block;
+}
+.tp-price {
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 12px;
+}
+.tp-add {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--on-primary, white);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+.tp-promo {
+  margin-top: 0;
+  padding: 12px 14px;
+  font-weight: 700;
+}
+.tp-btns {
+  display: flex;
+  gap: 8px;
+  padding: 4px 12px 0;
+}
+.tp-btn {
+  flex: 1;
+  text-align: center;
+  padding: 9px;
+  border-radius: 10px;
+  font-weight: 700;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.tp-btn.primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--on-primary, white);
 }

@@ -25,6 +25,9 @@ function toRestaurant(row) {
     heroFontFamily: row.hero_font_family || '',
     heroFontSize: row.hero_font_size || '',
     heroFontWeight: row.hero_font_weight || '',
+    themeBg: row.theme_bg || '',
+    themeAccent: row.theme_accent || '',
+    themePreset: row.theme_preset || '',
   };
 }
 
@@ -120,6 +123,17 @@ export async function updateRestaurantHero(restaurantId, fields) {
     p_hero_font_size: 'heroFontSize' in fields ? fields.heroFontSize : null,
     p_hero_font_weight: 'heroFontWeight' in fields ? fields.heroFontWeight : null,
     p_clear: fields.clear === true,
+  });
+  if (error) throw error;
+}
+
+// Customer UI theme. Passing all-empty values clears the theme (default look).
+export async function updateRestaurantTheme(restaurantId, { bg, accent, preset }) {
+  const { error } = await supabase.rpc('update_restaurant_theme', {
+    p_restaurant_id: restaurantId,
+    p_theme_bg: bg || null,
+    p_theme_accent: accent || null,
+    p_theme_preset: preset || null,
   });
   if (error) throw error;
 }

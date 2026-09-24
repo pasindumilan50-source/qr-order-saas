@@ -17,6 +17,7 @@ import {
   savePrinterSettings,
 } from '../../services/printerService';
 import { Loading } from '../../components/Common';
+import ThemeSettings from './ThemeSettings';
 
 const DEFAULT_PRINTER_FORM = {
   name: 'Kitchen Printer',
@@ -602,6 +603,16 @@ export default function SettingsPage() {
             {savingPromo ? 'Adding…' : 'Add promotion'}
           </button>
         </div>
+      </section>
+
+      <section className="settings-section">
+        <h2>Customer Theme</h2>
+        <p className="form-hint">
+          Choose the colors customers see when they scan your QR code. Pick a preset, or set your own background
+          and accent. Text, buttons and cards adjust automatically so everything stays readable. This only
+          changes the customer ordering page, not this dashboard.
+        </p>
+        <ThemeSettings restaurantId={restaurantId} />
       </section>
 
       <section className="settings-section">

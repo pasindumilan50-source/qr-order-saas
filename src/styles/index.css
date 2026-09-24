@@ -2631,3 +2631,15 @@ th {
   border-color: var(--color-primary);
   color: var(--on-primary, white);
 }
+
+/* Hero: blend the image / default fill softly into the dark panel
+   instead of a hard vertical edge. */
+.customer-hero-media img,
+.customer-hero-media-default {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.55) 30%, #000 65%);
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.55) 30%, #000 65%);
+}
+.customer-hero-media-default {
+  background: radial-gradient(120% 120% at 85% 40%, var(--menu-chili) 0%, var(--menu-chili-dark) 100%);
+  opacity: 0.85;
+}

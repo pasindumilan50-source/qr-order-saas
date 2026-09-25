@@ -4,6 +4,8 @@ import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import AppRoutes from './routes/AppRoutes';
 import './styles/index.css';
+import './styles/hero-fix.css';
+import './styles/ar.css';
 
 export default function App() {
   return (

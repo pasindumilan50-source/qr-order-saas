@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useCart } from '../../context/CartContext';
 import { formatLKR } from '../../utils/formatters';
 import { BADGE_BY_ID } from '../../utils/badges';
+import ARButton from '../../components/ar/ARButton';
 
 // A category name is always real restaurant data (from menu_items.category).
 // This only picks a decorative emoji to go with that real name — it never
@@ -230,6 +231,7 @@ export function FoodSheet({ item, onClose }) {
             </div>
           )}
         </div>
+        <ARButton item={item} />
         <h2>{item.name}</h2>
         {item.description && <p className="food-sheet-desc">{item.description}</p>}
         <div className="food-sheet-row">

@@ -10,6 +10,8 @@ import {
   updateMenuItem,
 } from '../../services/menuService';
 import { uploadMenuImage } from '../../services/storageService';
+import { prepareModelChanges, removeModelFiles } from '../../services/arModelService';
+import ARModelUpload from '../../components/ar/ARModelUpload';
 import { Loading, EmptyState, ConfirmDialog } from '../../components/Common';
 import { formatLKR } from '../../utils/formatters';
 import { BADGE_CATALOG, BADGE_BY_ID } from '../../utils/badges';
@@ -56,6 +58,10 @@ export default function MenuPage() {
     setTimeout(async () => {
       try {
         await deleteMenuItem(target.id);
+        // Clean up this item's 3D files (best effort; only touches its own folder).
+        if (target.modelGlbUrl || target.modelUsdzUrl) {
+          removeModelFiles(target.restaurantId, target.id).catch(() => {});
+        }
         toast.success('Item deleted.');
       } catch {
         toast.error('Could not delete item.');
@@ -193,6 +199,7 @@ function MenuItemForm({ item, restaurantId, onClose }) {
       : emptyForm
   );
   const [file, setFile] = useState(null);
+  const [arChanges, setArChanges] = useState({ glb: {}, usdz: {} });
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -220,10 +227,27 @@ function MenuItemForm({ item, restaurantId, onClose }) {
       if (file) {
         imageUrl = await uploadMenuImage(restaurantId, file);
       }
+      let itemId = item?.id;
       if (item) {
         await updateMenuItem(item.id, { ...form, price, imageUrl });
       } else {
-        await createMenuItem(restaurantId, { ...form, price, imageUrl });
+        itemId = await createMenuItem(restaurantId, { ...form, price, imageUrl });
+      }
+
+      // Optional 3D / AR models. The item is already saved at this point, so a
+      // model problem is reported without losing the rest of the form.
+      const hasModelChanges = ['glb', 'usdz'].some((f) => arChanges[f].file || arChanges[f].remove);
+      if (hasModelChanges) {
+        try {
+          const { patch, toDelete } = await prepareModelChanges(restaurantId, itemId, arChanges);
+          if (Object.keys(patch).length) await updateMenuItem(itemId, patch);
+          if (toDelete.length) await removeModelFiles(restaurantId, itemId, toDelete).catch(() => {});
+        } catch (arErr) {
+          toast.error(`Item saved, but the 3D model failed: ${arErr.message || 'upload error'}`);
+          setShowSuccess(true);
+          setTimeout(onClose, 550);
+          return;
+        }
       }
       toast.success(item ? 'Item updated.' : 'Item added.');
       setShowSuccess(true);
@@ -276,6 +300,13 @@ function MenuItemForm({ item, restaurantId, onClose }) {
               </label>
             ))}
           </div>
+
+          <ARModelUpload
+            current={{ glb: item?.modelGlbUrl, usdz: item?.modelUsdzUrl }}
+            changes={arChanges}
+            onChange={(format, value) => setArChanges((c) => ({ ...c, [format]: value }))}
+            disabled={submitting}
+          />
 
           {error && <p className="form-error">{error}</p>}
 

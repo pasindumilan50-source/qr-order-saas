@@ -13,6 +13,8 @@ function toMenuItem(row) {
     available: row.available !== false,
     soldOut: !!row.sold_out,
     badges: Array.isArray(row.badges) ? row.badges : [],
+    modelGlbUrl: row.model_glb_url || '',
+    modelUsdzUrl: row.model_usdz_url || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -92,6 +94,8 @@ export async function updateMenuItem(menuItemId, data) {
   if ('category' in data) patch.category = data.category;
   if ('available' in data) patch.available = data.available;
   if ('soldOut' in data) patch.sold_out = data.soldOut;
+  if ('modelGlbUrl' in data) patch.model_glb_url = data.modelGlbUrl || null;
+  if ('modelUsdzUrl' in data) patch.model_usdz_url = data.modelUsdzUrl || null;
   if ('badges' in data) patch.badges = Array.isArray(data.badges) ? data.badges : [];
   if ('price' in data) {
     const price = Number(data.price);

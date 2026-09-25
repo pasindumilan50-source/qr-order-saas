@@ -1,0 +1,173 @@
+/* 3D / AR feature — uses the existing design tokens so it matches the app
+   and any restaurant theme. */
+.ar-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ar-button:hover {
+  border-color: var(--color-primary);
+}
+
+.ar-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg, #f8fafc);
+  color: var(--color-text, #0f172a);
+}
+.ar-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
+}
+.ar-title {
+  font-size: 17px;
+}
+.ar-close {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 16px;
+  cursor: pointer;
+}
+.ar-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.ar-model {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  --poster-color: transparent;
+}
+.ar-launch {
+  position: absolute;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  padding: 13px 26px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--on-primary, white);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+.ar-hint {
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0;
+  padding: 0 0 calc(80px + env(safe-area-inset-bottom, 0px));
+}
+.ar-loading,
+.ar-error,
+.ar-usdz-only {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  padding: 24px;
+  pointer-events: none;
+}
+.ar-error,
+.ar-usdz-only {
+  pointer-events: auto;
+}
+.ar-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  animation: arSpin 0.8s linear infinite;
+}
+@keyframes arSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.ar-retry,
+.ar-quicklook {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 22px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--on-primary, white);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.ar-quicklook img {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+.ar-note {
+  color: var(--color-text-muted);
+}
+
+/* Admin upload block */
+.ar-upload {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 12px;
+  margin: 14px 0 0;
+}
+.ar-upload legend {
+  font-weight: 700;
+  padding: 0 6px;
+}
+.ar-upload-row {
+  display: grid;
+  gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid var(--color-border);
+}
+.ar-upload-row:first-of-type {
+  border-top: none;
+}
+.ar-upload-label {
+  display: flex;
+  flex-direction: column;
+}
+.ar-upload-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.ar-upload-actions label {
+  cursor: pointer;
+}
+.ar-upload-actions .is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}

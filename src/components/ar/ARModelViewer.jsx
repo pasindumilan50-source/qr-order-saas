@@ -2,6 +2,31 @@ import { useEffect, useRef, useState } from 'react';
 import { isAppleDevice } from '../../utils/arSupport';
 
 const LOAD_TIMEOUT_MS = 30000;
+// Most uploaded models (scans, downloaded assets) aren't authored at real-world
+// scale, so AR can place them far too big or too small. We normalize every
+// model's longest side to roughly a dinner-plate-sized dish. If a model is
+// already close to that, we leave it alone rather than fight a well-made file.
+const TARGET_SIZE_M = 0.22;
+
+// Resize a just-loaded model so it appears at a sensible real-world size in
+// AR, regardless of the units/scale it was originally modelled or scanned at.
+function autoScale(el) {
+  try {
+    el.scale = '1 1 1';
+    const dims = el.getDimensions();
+    const maxDim = Math.max(dims.x, dims.y, dims.z);
+    if (!Number.isFinite(maxDim) || maxDim <= 0) return;
+    const factor = TARGET_SIZE_M / maxDim;
+    // Only step in when the model is clearly off (>2x too big/small) — a
+    // model that's already close to plate-sized is left exactly as authored.
+    if (factor < 0.5 || factor > 2) {
+      el.scale = `${factor} ${factor} ${factor}`;
+    }
+  } catch {
+    // getDimensions() can be unavailable briefly right after 'load'; the
+    // model still displays, just at its original scale.
+  }
+}
 
 // Full-screen 3D viewer. This file (and the ~1 MB @google/model-viewer library)
 // is only downloaded when a customer taps "View in 3D / AR" — see ARButton.
@@ -33,7 +58,10 @@ export default function ARModelViewer({ item, onClose }) {
     const el = ref.current;
     if (!libReady || !el) return undefined;
     setStatus('loading');
-    const onLoad = () => setStatus('ready');
+    const onLoad = () => {
+      setStatus('ready');
+      autoScale(el);
+    };
     const onError = () => setStatus('error');
     el.addEventListener('load', onLoad);
     el.addEventListener('error', onError);
@@ -97,7 +125,7 @@ export default function ARModelViewer({ item, onClose }) {
               exposure="1"
               ar=""
               ar-modes="webxr scene-viewer quick-look"
-              ar-scale="fixed"
+              ar-scale="auto"
               loading="eager"
             >
               {/* model-viewer only shows this button on devices/browsers that can actually launch AR. */}

@@ -3,7 +3,7 @@ import { AR_FORMATS, AR_RECOMMENDED_MB, validateModelFile } from '../../services
 
 // Controlled by the parent form: `changes` = { glb: {file, remove}, usdz: {file, remove} }.
 // Nothing is uploaded here; the parent uploads on Save (the menu item id must exist first).
-export default function ARModelUpload({ current, changes, onChange, disabled }) {
+export default function ARModelUpload({ current, changes, onChange, disabled, sizeCm, onSizeChange }) {
   return (
     <fieldset className="ar-upload">
       <legend>3D / AR model (optional)</legend>
@@ -14,6 +14,30 @@ export default function ARModelUpload({ current, changes, onChange, disabled }) 
       </p>
       <Row format="glb" currentUrl={current.glb} change={changes.glb} onChange={onChange} disabled={disabled} />
       <Row format="usdz" currentUrl={current.usdz} change={changes.usdz} onChange={onChange} disabled={disabled} />
+
+      <div className="ar-size-row">
+        <label htmlFor="ar-size-cm">
+          <strong>Real-world size in AR</strong>
+          <span className="form-hint">
+            The dish&apos;s longest side, in centimeters. Leave blank to use the default (15cm) — a burger
+            might be 10-12cm, a full plate of rice 20-25cm.
+          </span>
+        </label>
+        <div className="ar-size-input">
+          <input
+            id="ar-size-cm"
+            type="number"
+            min="1"
+            max="100"
+            step="0.5"
+            placeholder="15"
+            value={sizeCm ?? ''}
+            onChange={(e) => onSizeChange(e.target.value === '' ? null : Number(e.target.value))}
+            disabled={disabled}
+          />
+          <span>cm</span>
+        </div>
+      </div>
     </fieldset>
   );
 }

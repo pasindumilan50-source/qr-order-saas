@@ -171,3 +171,24 @@
   opacity: 0.5;
   pointer-events: none;
 }
+
+.ar-size-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--color-border);
+  margin-top: 4px;
+}
+.ar-size-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ar-size-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ar-size-input input {
+  width: 90px;
+}

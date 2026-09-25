@@ -1,1 +1,0 @@
-import{j as s,L as e}from"./index-DtpqRn5E.js";function i(){return s.jsxs("div",{className:"full-page-message",children:[s.jsx("h1",{children:"404"}),s.jsx("p",{children:"This page doesn't exist."}),s.jsx(e,{to:"/login",className:"btn btn-primary",children:"Go to sign in"})]})}export{i as default};

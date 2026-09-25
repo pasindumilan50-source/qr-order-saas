@@ -1,1 +1,0 @@
-import{j as i}from"./index-D8EnpZAa.js";import r from"./KitchenDashboard-D2t6TFG3.js";import"./orderService-9kBE0xMj.js";import"./formatters-CRPdnNwA.js";function o(){return i.jsxs("div",{className:"page",children:[i.jsx("h1",{children:"Kitchen"}),i.jsx(r,{})]})}export{o as default};

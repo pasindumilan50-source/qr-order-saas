@@ -64,6 +64,7 @@ export default function ARModelViewer({ item, onClose }) {
       setStatus('ready');
       const targetM = item.modelSizeCm ? item.modelSizeCm / 100 : DEFAULT_SIZE_M;
       autoScale(el, targetM);
+      el.cameraOrbit = '0deg 75deg 60%';
     };
     const onError = () => setStatus('error');
     el.addEventListener('load', onLoad);

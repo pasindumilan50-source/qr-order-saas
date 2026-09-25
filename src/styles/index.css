@@ -1009,6 +1009,11 @@ th {
   height: 100%;
   object-fit: cover;
   display: block;
+  animation: heroImageFade 0.5s ease both;
+}
+@keyframes heroImageFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 /* Shown only when a restaurant hasn't uploaded any hero image yet — a
    plain on-brand fill, never a stock photo standing in for their food. */

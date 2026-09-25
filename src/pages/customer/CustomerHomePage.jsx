@@ -137,7 +137,7 @@ export default function CustomerHomePage() {
         </div>
         <div className="customer-hero-media">
           {heroSlides.length > 0 ? (
-            <img src={heroSlides[slideIndex]?.imageUrl} alt="" />
+            <img key={heroSlides[slideIndex]?.id ?? slideIndex} src={heroSlides[slideIndex]?.imageUrl} alt="" />
           ) : (
             <div className="customer-hero-media-default" aria-hidden="true" />
           )}
@@ -179,7 +179,10 @@ export default function CustomerHomePage() {
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd(setPromoIndex, promotions.length)}
         >
-          <div className={`promo-card ${promotions[promoIndex].imageUrl ? '' : 'promo-card--text-only'}`}>
+          <div
+            key={promotions[promoIndex].id ?? promoIndex}
+            className={`promo-card ${promotions[promoIndex].imageUrl ? '' : 'promo-card--text-only'}`}
+          >
             {promotions[promoIndex].imageUrl && <img src={promotions[promoIndex].imageUrl} alt="" />}
             <div className="promo-card-text">{promotions[promoIndex].text}</div>
           </div>

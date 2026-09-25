@@ -3,7 +3,7 @@ import { supabase } from '../supabase/config';
 const BUCKET = 'ar-models';
 
 export const AR_FORMATS = {
-  glb: { ext: 'glb', label: 'GLB', mime: 'model/gltf-binary', maxBytes: 15 * 1024 * 1024 },
+  glb: { ext: 'glb', label: 'GLB', mime: 'model/gltf-binary', maxBytes: 25 * 1024 * 1024 },
   usdz: { ext: 'usdz', label: 'USDZ', mime: 'model/vnd.usdz+zip', maxBytes: 15 * 1024 * 1024 },
 };
 export const AR_RECOMMENDED_MB = 5;

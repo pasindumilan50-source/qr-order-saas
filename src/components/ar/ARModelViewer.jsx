@@ -128,7 +128,7 @@ export default function ARModelViewer({ item, onClose }) {
               exposure="1"
               ar=""
               ar-modes="webxr scene-viewer quick-look"
-              ar-scale="auto"
+              ar-scale="fixed"
               loading="eager"
             >
               {/* model-viewer only shows this button on devices/browsers that can actually launch AR. */}

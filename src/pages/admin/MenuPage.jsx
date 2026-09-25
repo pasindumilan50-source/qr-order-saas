@@ -10,14 +10,13 @@ import {
   updateMenuItem,
 } from '../../services/menuService';
 import { uploadMenuImage } from '../../services/storageService';
+import { prepareModelChanges, removeModelFiles } from '../../services/arModelService';
+import ARModelUpload from '../../components/ar/ARModelUpload';
 import { Loading, EmptyState, ConfirmDialog } from '../../components/Common';
 import { formatLKR } from '../../utils/formatters';
 import { BADGE_CATALOG, BADGE_BY_ID } from '../../utils/badges';
 
-const emptyForm = { name: '', description: '', price: '', category: '', imageUrl: '', badges: [], autoBadgesOff: [] };
-
-// Badges the system can award automatically from order history.
-const AUTO_BADGE_IDS = ['fast_moving', 'popular'];
+const emptyForm = { name: '', description: '', price: '', category: '', imageUrl: '', badges: [] };
 
 export default function MenuPage() {
   const { restaurantId } = useAuth();
@@ -27,6 +26,7 @@ export default function MenuPage() {
   const [editing, setEditing] = useState(null); // item being edited, or 'new'
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState('All');
+  const [removingIds, setRemovingIds] = useState(() => new Set());
 
   useEffect(() => {
     if (!restaurantId) return;
@@ -39,8 +39,7 @@ export default function MenuPage() {
       () => {
         toast.error('Could not load menu items.');
         setLoading(false);
-      },
-      { withAutoBadges: true }
+      }
     );
     return () => unsub();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -51,14 +50,28 @@ export default function MenuPage() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    try {
-      await deleteMenuItem(deleteTarget.id);
-      toast.success('Item deleted.');
-    } catch {
-      toast.error('Could not delete item.');
-    } finally {
-      setDeleteTarget(null);
-    }
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    // Play the fade/slide-out first, then delete for real — feels instant
+    // instead of the row just vanishing the moment realtime catches up.
+    setRemovingIds((prev) => new Set(prev).add(target.id));
+    setTimeout(async () => {
+      try {
+        await deleteMenuItem(target.id);
+        // Clean up this item's 3D files (best effort; only touches its own folder).
+        if (target.modelGlbUrl || target.modelUsdzUrl) {
+          removeModelFiles(target.restaurantId, target.id).catch(() => {});
+        }
+        toast.success('Item deleted.');
+      } catch {
+        toast.error('Could not delete item.');
+        setRemovingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(target.id);
+          return next;
+        });
+      }
+    }, 260);
   };
 
   if (loading) return <Loading fullPage label="Loading menu…" />;
@@ -85,10 +98,22 @@ export default function MenuPage() {
       {visible.length === 0 ? (
         <EmptyState icon="📋" title="No menu items yet" description="Add your first item to get started." />
       ) : (
-        <div className="admin-menu-grid">
+        <div className="admin-menu-grid" key={categoryFilter}>
           {visible.map((item) => (
-            <div key={item.id} className="admin-menu-card">
-              {item.imageUrl && <img src={item.imageUrl} alt={item.name} />}
+            <div
+              key={item.id}
+              className={`admin-menu-card ${removingIds.has(item.id) ? 'is-removing' : ''}`}
+            >
+              {item.imageUrl && (
+                <div className="admin-menu-card-media">
+                  <img src={item.imageUrl} alt={item.name} className={item.soldOut ? 'is-sold-out-img' : ''} />
+                  {item.soldOut && (
+                    <div className="sold-out-stamp">
+                      <span>SOLD OUT</span>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="admin-menu-card-body">
                 <div className="admin-menu-card-title-row">
                   <strong>{item.name}</strong>
@@ -96,9 +121,9 @@ export default function MenuPage() {
                 </div>
                 <p>{item.description}</p>
                 <span className="category-chip">{item.category}</span>
-                {(item.badges?.length > 0 || item.autoBadges?.length > 0) && (
+                {item.badges?.length > 0 && (
                   <div className="admin-menu-card-badges">
-                    {(item.badges || []).map((id) => {
+                    {item.badges.map((id) => {
                       const b = BADGE_BY_ID[id];
                       if (!b) return null;
                       return (
@@ -107,30 +132,21 @@ export default function MenuPage() {
                         </span>
                       );
                     })}
-                    {(item.autoBadges || [])
-                      .filter((id) => !(item.badges || []).includes(id))
-                      .map((id) => {
-                        const b = BADGE_BY_ID[id];
-                        if (!b) return null;
-                        return (
-                          <span key={`auto-${id}`} className="menu-badge" style={{ '--badge-color': b.color, opacity: 0.75 }} title="Awarded automatically from orders">
-                            {b.emoji} {b.label} · auto
-                          </span>
-                        );
-                      })}
                   </div>
                 )}
                 <div className="admin-menu-card-toggles">
-                  <label>
+                  <label className="switch">
                     <input
                       type="checkbox"
                       checked={item.available !== false}
                       onChange={(e) => toggleAvailable(item.id, e.target.checked)}
                     />
+                    <span className="switch-track" />
                     Available
                   </label>
-                  <label>
+                  <label className="switch switch-danger">
                     <input type="checkbox" checked={!!item.soldOut} onChange={(e) => toggleSoldOut(item.id, e.target.checked)} />
+                    <span className="switch-track" />
                     Sold out
                   </label>
                 </div>
@@ -179,12 +195,14 @@ function MenuItemForm({ item, restaurantId, onClose }) {
           category: item.category,
           imageUrl: item.imageUrl,
           badges: item.badges || [],
-          autoBadgesOff: item.autoBadgesOff || [],
         }
       : emptyForm
   );
   const [file, setFile] = useState(null);
+  const [arChanges, setArChanges] = useState({ glb: {}, usdz: {} });
+  const [arSizeCm, setArSizeCm] = useState(item?.modelSizeCm ?? null);
   const [submitting, setSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState('');
   const toast = useToast();
 
@@ -194,13 +212,6 @@ function MenuItemForm({ item, restaurantId, onClose }) {
     setForm((f) => {
       const has = f.badges.includes(id);
       return { ...f, badges: has ? f.badges.filter((b) => b !== id) : [...f.badges, id] };
-    });
-  };
-
-  const toggleAutoBadge = (id) => {
-    setForm((f) => {
-      const off = f.autoBadgesOff || [];
-      return { ...f, autoBadgesOff: off.includes(id) ? off.filter((b) => b !== id) : [...off, id] };
     });
   };
 
@@ -217,16 +228,34 @@ function MenuItemForm({ item, restaurantId, onClose }) {
       if (file) {
         imageUrl = await uploadMenuImage(restaurantId, file);
       }
+      let itemId = item?.id;
       if (item) {
-        await updateMenuItem(item.id, { ...form, price, imageUrl });
+        await updateMenuItem(item.id, { ...form, price, imageUrl, modelSizeCm: arSizeCm });
       } else {
-        await createMenuItem(restaurantId, { ...form, price, imageUrl });
+        itemId = await createMenuItem(restaurantId, { ...form, price, imageUrl });
+        if (arSizeCm != null) await updateMenuItem(itemId, { modelSizeCm: arSizeCm });
+      }
+
+      // Optional 3D / AR models. The item is already saved at this point, so a
+      // model problem is reported without losing the rest of the form.
+      const hasModelChanges = ['glb', 'usdz'].some((f) => arChanges[f].file || arChanges[f].remove);
+      if (hasModelChanges) {
+        try {
+          const { patch, toDelete } = await prepareModelChanges(restaurantId, itemId, arChanges);
+          if (Object.keys(patch).length) await updateMenuItem(itemId, patch);
+          if (toDelete.length) await removeModelFiles(restaurantId, itemId, toDelete).catch(() => {});
+        } catch (arErr) {
+          toast.error(`Item saved, but the 3D model failed: ${arErr.message || 'upload error'}`);
+          setShowSuccess(true);
+          setTimeout(onClose, 550);
+          return;
+        }
       }
       toast.success(item ? 'Item updated.' : 'Item added.');
-      onClose();
+      setShowSuccess(true);
+      setTimeout(onClose, 550);
     } catch (err) {
       setError(err.message || 'Could not save item.');
-    } finally {
       setSubmitting(false);
     }
   };
@@ -234,6 +263,12 @@ function MenuItemForm({ item, restaurantId, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
+        {showSuccess && (
+          <div className="save-success-overlay">
+            <div className="save-success-check">✓</div>
+            <span className="save-success-label">Saved!</span>
+          </div>
+        )}
         <h3>{item ? 'Edit item' : 'Add item'}</h3>
         <form onSubmit={handleSubmit}>
           <label>
@@ -268,24 +303,14 @@ function MenuItemForm({ item, restaurantId, onClose }) {
             ))}
           </div>
 
-          <label>
-            Automatic badges
-            <span className="form-hint"> — awarded from recent orders. Untick to hide one for this item.</span>
-          </label>
-          <div className="badge-picker">
-            {AUTO_BADGE_IDS.map((id) => {
-              const b = BADGE_BY_ID[id];
-              const enabled = !(form.autoBadgesOff || []).includes(id);
-              const earned = item?.autoBadges?.includes(id);
-              return (
-                <label key={id} className={`badge-picker-option ${enabled ? 'is-selected' : ''}`} style={{ '--badge-color': b.color }}>
-                  <input type="checkbox" checked={enabled} onChange={() => toggleAutoBadge(id)} />
-                  {b.emoji} {b.label}
-                  {item && enabled && (earned ? ' · earned now' : ' · not earned yet')}
-                </label>
-              );
-            })}
-          </div>
+          <ARModelUpload
+            current={{ glb: item?.modelGlbUrl, usdz: item?.modelUsdzUrl }}
+            changes={arChanges}
+            onChange={(format, value) => setArChanges((c) => ({ ...c, [format]: value }))}
+            sizeCm={arSizeCm}
+            onSizeChange={setArSizeCm}
+            disabled={submitting}
+          />
 
           {error && <p className="form-error">{error}</p>}
 

@@ -2,23 +2,25 @@ import { useEffect, useRef, useState } from 'react';
 import { isAppleDevice } from '../../utils/arSupport';
 
 const LOAD_TIMEOUT_MS = 30000;
-// Most uploaded models (scans, downloaded assets) aren't authored at real-world
-// scale, so AR can place them far too big or too small. We normalize every
-// model's longest side to roughly a dinner-plate-sized dish. If a model is
-// already close to that, we leave it alone rather than fight a well-made file.
-const TARGET_SIZE_M = 0.22;
+// Default when the admin hasn't set a size for this dish. Most uploaded
+// models (scans, downloaded assets) aren't authored at real-world scale, so
+// AR can place them far too big or too small — we normalize to roughly this
+// size unless the item has its own value.
+const DEFAULT_SIZE_M = 0.15;
 
 // Resize a just-loaded model so it appears at a sensible real-world size in
-// AR, regardless of the units/scale it was originally modelled or scanned at.
-function autoScale(el) {
+// AR. `targetM` comes from the item's own "Real-world size" field when the
+// admin set one, else the app default — either way this works regardless of
+// the units/scale the model was originally modelled or scanned at.
+function autoScale(el, targetM) {
   try {
     el.scale = '1 1 1';
     const dims = el.getDimensions();
     const maxDim = Math.max(dims.x, dims.y, dims.z);
     if (!Number.isFinite(maxDim) || maxDim <= 0) return;
-    const factor = TARGET_SIZE_M / maxDim;
+    const factor = targetM / maxDim;
     // Only step in when the model is clearly off (>2x too big/small) — a
-    // model that's already close to plate-sized is left exactly as authored.
+    // model that's already close to the target is left exactly as authored.
     if (factor < 0.5 || factor > 2) {
       el.scale = `${factor} ${factor} ${factor}`;
     }
@@ -60,7 +62,8 @@ export default function ARModelViewer({ item, onClose }) {
     setStatus('loading');
     const onLoad = () => {
       setStatus('ready');
-      autoScale(el);
+      const targetM = item.modelSizeCm ? item.modelSizeCm / 100 : DEFAULT_SIZE_M;
+      autoScale(el, targetM);
     };
     const onError = () => setStatus('error');
     el.addEventListener('load', onLoad);

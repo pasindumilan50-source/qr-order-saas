@@ -13,30 +13,15 @@ function toMenuItem(row) {
     available: row.available !== false,
     soldOut: !!row.sold_out,
     badges: Array.isArray(row.badges) ? row.badges : [],
-    autoBadgesOff: Array.isArray(row.auto_badges_off) ? row.auto_badges_off : [],
+    modelGlbUrl: row.model_glb_url || '',
+    modelUsdzUrl: row.model_usdz_url || '',
+    modelSizeCm: row.model_size_cm != null ? Number(row.model_size_cm) : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
-// Auto badges (Fast Moving / Popular) are computed by the database from order
-// history. They are kept separate from the manual `badges` so the admin editor
-// never saves an auto badge as if it were a manual one.
-async function fetchAutoBadges(restaurantId) {
-  try {
-    const { data, error } = await supabase.rpc('get_auto_badges', { p_restaurant_id: restaurantId });
-    if (error) return {};
-    const map = {};
-    (data || []).forEach((r) => {
-      (map[r.menu_item_id] ||= []).push(r.badge);
-    });
-    return map;
-  } catch {
-    return {};
-  }
-}
-
-export function listenMenuItems(restaurantId, onData, onError, { withAutoBadges = false } = {}) {
+export function listenMenuItems(restaurantId, onData, onError) {
   let cancelled = false;
 
   async function fetchAll() {
@@ -51,13 +36,7 @@ export function listenMenuItems(restaurantId, onData, onError, { withAutoBadges 
       onError?.(error);
       return;
     }
-    let items = (data || []).map(toMenuItem);
-    if (withAutoBadges) {
-      const autoMap = await fetchAutoBadges(restaurantId);
-      if (cancelled) return;
-      items = items.map((i) => ({ ...i, autoBadges: autoMap[i.id] || [] }));
-    }
-    onData(items);
+    onData((data || []).map(toMenuItem));
   }
 
   fetchAll();
@@ -100,7 +79,6 @@ export async function createMenuItem(restaurantId, data) {
       available: data.available !== false,
       sold_out: !!data.soldOut,
       badges: Array.isArray(data.badges) ? data.badges : [],
-      auto_badges_off: Array.isArray(data.autoBadgesOff) ? data.autoBadgesOff : [],
     })
     .select()
     .single();
@@ -117,8 +95,10 @@ export async function updateMenuItem(menuItemId, data) {
   if ('category' in data) patch.category = data.category;
   if ('available' in data) patch.available = data.available;
   if ('soldOut' in data) patch.sold_out = data.soldOut;
+  if ('modelGlbUrl' in data) patch.model_glb_url = data.modelGlbUrl || null;
+  if ('modelUsdzUrl' in data) patch.model_usdz_url = data.modelUsdzUrl || null;
+  if ('modelSizeCm' in data) patch.model_size_cm = data.modelSizeCm || null;
   if ('badges' in data) patch.badges = Array.isArray(data.badges) ? data.badges : [];
-  if ('autoBadgesOff' in data) patch.auto_badges_off = Array.isArray(data.autoBadgesOff) ? data.autoBadgesOff : [];
   if ('price' in data) {
     const price = Number(data.price);
     if (!Number.isFinite(price) || price < 0) throw new Error('A valid price is required.');

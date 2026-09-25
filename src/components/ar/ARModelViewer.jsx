@@ -64,7 +64,7 @@ export default function ARModelViewer({ item, onClose }) {
       setStatus('ready');
       const targetM = item.modelSizeCm ? item.modelSizeCm / 100 : DEFAULT_SIZE_M;
       autoScale(el, targetM);
-      el.cameraOrbit = '0deg 75deg 40%';
+      el.cameraOrbit = '0deg 75deg 15%';
       el.jumpCameraToGoal();
     };
     const onError = () => setStatus('error');
@@ -131,6 +131,7 @@ export default function ARModelViewer({ item, onClose }) {
               ar=""
               ar-modes="webxr scene-viewer quick-look"
               ar-scale="fixed"
+              min-camera-orbit="auto auto 5%"
               min-camera-orbit="auto auto 5%"
               loading="eager"
             >
